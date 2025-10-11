@@ -68,7 +68,7 @@ Follow these instructions to set up the project on your local machine for develo
     ```sh
     npm run dev
     ```
-    The application will be available at `http://localhost:4321`.
+    The application will be available at `http://localhost:3000`.
 
 ## Available Scripts
 
