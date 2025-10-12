@@ -1,7 +1,8 @@
 import type { APIRoute } from "astro";
 import { z } from "zod";
 
-import { createRecipe, RecipeServiceError } from "../../../lib/services/recipes.service.ts";
+import { DEFAULT_USER_ID } from "../../../db/supabase.client.ts";
+import { createRecipe, listRecipes, RecipeServiceError } from "../../../lib/services/recipes.service.ts";
 import type { RecipeCreateCommand } from "../../../types.ts";
 
 const ingredientSchema = z
@@ -34,8 +35,50 @@ const recipeSchema = z
   })
   .strict();
 
+const recipeListQuerySchema = z
+  .object({
+    mealType: z.enum(["breakfast", "lunch", "dinner", "dessert", "snack"]).optional(),
+    difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+    isAiGenerated: z
+      .enum(["true", "false"], {
+        invalid_type_error: "isAiGenerated must be a boolean value",
+      })
+      .optional()
+      .transform((value) => {
+        if (value === undefined) {
+          return undefined;
+        }
+
+        return value === "true";
+      }),
+    search: z
+      .string({ invalid_type_error: "search must be a string" })
+      .trim()
+      .min(1, "search must not be empty")
+      .max(50, "search must not exceed 50 characters")
+      .optional(),
+    limit: z.coerce
+      .number({ invalid_type_error: "limit must be a number" })
+      .int("limit must be an integer")
+      .min(1, "limit must be between 1 and 50")
+      .max(50, "limit must be between 1 and 50")
+      .default(20),
+    offset: z.coerce
+      .number({ invalid_type_error: "offset must be a number" })
+      .int("offset must be an integer")
+      .min(0, "offset must be 0 or greater")
+      .default(0),
+    sort: z
+      .enum(["createdAt.desc", "createdAt.asc", "name.asc"], {
+        invalid_type_error: "sort must be one of createdAt.desc, createdAt.asc, or name.asc",
+      })
+      .default("createdAt.desc"),
+  })
+  .strict();
+
 const errorStatusMap: Record<string, number> = {
   invalid_payload: 400,
+  invalid_query_params: 400,
   invalid_ingredient_unit: 400,
   duplicate_ingredient: 400,
   product_not_found: 404,
@@ -46,6 +89,7 @@ const errorStatusMap: Record<string, number> = {
 
 const errorMessageMap: Record<string, string> = {
   invalid_payload: "Submitted payload is invalid.",
+  invalid_query_params: "Query parameters are invalid.",
   invalid_ingredient_unit: "One or more ingredients use an unsupported unit.",
   duplicate_ingredient: "Each ingredient must reference a unique product.",
   product_not_found: "One or more referenced products were not found.",
@@ -128,6 +172,46 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     console.error("POST /api/recipes: Unexpected error", { error });
+    return buildErrorResponse("internal_error");
+  }
+};
+
+export const GET: APIRoute = async ({ request }) => {
+  const url = new URL(request.url);
+  const query = Object.fromEntries(url.searchParams.entries());
+
+  const validation = recipeListQuerySchema.safeParse(query);
+
+  if (!validation.success) {
+    console.warn("GET /api/recipes: Query validation failed", {
+      issues: validation.error.issues,
+    });
+
+    return buildErrorResponse("invalid_query_params", validation.error.issues[0]?.message);
+  }
+
+  const userId = DEFAULT_USER_ID;
+
+  try {
+    const result = await listRecipes(userId, validation.data);
+
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (error) {
+    if (error instanceof RecipeServiceError) {
+      console.warn("GET /api/recipes: Service error", {
+        code: error.code,
+        message: error.message,
+      });
+
+      return buildErrorResponse(error.code, error.message);
+    }
+
+    console.error("GET /api/recipes: Unexpected error", { error });
     return buildErrorResponse("internal_error");
   }
 };
