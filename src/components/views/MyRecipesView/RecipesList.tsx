@@ -4,7 +4,7 @@ import type { ComponentPropsWithoutRef } from "react";
 import type { RecipeListItemDto } from "../../../types.ts";
 import { EmptyState } from "./EmptyState";
 import { RecipeCard } from "./RecipeCard";
-import { RecipeListSkeleton } from "./RecipeListSkeleton.tsx";
+import { Spinner } from "@/components/ui/spinner";
 
 interface RecipesListProps extends ComponentPropsWithoutRef<"div"> {
   recipes: RecipeListItemDto[];
@@ -16,7 +16,11 @@ interface RecipesListProps extends ComponentPropsWithoutRef<"div"> {
 
 export function RecipesList({ recipes, isLoading, error, onDelete, onRetry, className, ...props }: RecipesListProps) {
   if (isLoading) {
-    return <RecipeListSkeleton className={className} {...props} />;
+    return (
+      <div className={cn("flex items-center justify-center py-12", className)} {...props}>
+        <Spinner className="size-8 text-primary" />
+      </div>
+    );
   }
 
   if (error) {
