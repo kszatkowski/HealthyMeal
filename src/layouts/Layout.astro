@@ -1,6 +1,8 @@
 ---
 import "../styles/global.css";
 
+import { Navbar } from "@/components/layout/Navbar";
+
 interface Props {
   title?: string;
 }
@@ -18,6 +20,8 @@ const { title = "HealthyMeal" } = Astro.props;
     <title>{title}</title>
   </head>
   <body class="min-h-screen bg-background font-sans antialiased">
+    {Astro.locals.user ? <Navbar client:load user={Astro.locals.user} /> : null}
+
     <main class="flex min-h-screen flex-col">
       <slot />
     </main>
