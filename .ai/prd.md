@@ -43,12 +43,14 @@ Poniższe funkcjonalności nie wchodzą w zakres wersji MVP i mogą być rozważ
   5. Po pomyślnej rejestracji użytkownik jest automatycznie zalogowany i przekierowany na stronę główną.
 
 - ID: US-002
-- Tytuł: Logowanie do aplikacji
+- Tytuł: Logowanie do aplikacji i bezpieczny dostęp
 - Opis: Jako zarejestrowany użytkownik, chcę móc zalogować się do aplikacji przy użyciu mojego e-maila i hasła, aby uzyskać dostęp do moich zapisanych przepisów i preferencji.
 - Kryteria akceptacji:
   1. Formularz logowania zawiera pola na adres e-mail i hasło.
   2. Po poprawnym wprowadzeniu danych użytkownik zostaje zalogowany i przekierowany na stronę główną.
   3. W przypadku podania błędnych danych, wyświetlany jest komunikat o nieprawidłowym loginie lub haśle.
+  4. Każda strona wymaga aktualnie zalogowanego użytkownika. Jedynym wyjątkiem jest rejestracja.
+  5. Nie korzystamy z zewnętrznych serwisów logowania (np. Google, GitHub).
 
 - ID: US-003
 - Tytuł: Zarządzanie preferencjami żywieniowymi
@@ -100,6 +102,14 @@ Poniższe funkcjonalności nie wchodzą w zakres wersji MVP i mogą być rozważ
   2. Kliknięcie na przepis przenosi do widoku jego szczegółów.
   3. W widoku szczegółów oraz na liście dostępna jest opcja "Usuń".
   4. Usunięcie przepisu wymaga potwierdzenia przez użytkownika. Po potwierdzeniu przepis jest trwale usuwany z konta.
+- ID: US-009
+- Tytuł: Nawigacja w aplikacji i zarządzanie sesją
+- Opis: Jako zalogowany użytkownik, chcę mieć dostęp do paska nawigacyjnego z przyciskami do zarządzania preferencjami i wylogowania, aby łatwo poruszać się po aplikacji i zarządzać swoją sesją.
+- Kryteria akceptacji:
+  1. Navigation Bar jest wyświetlany na wszystkich stronach aplikacji po zalogowaniu i jest przyklejony do górnej krawędzi strony podczas przewijania. Navigation Bar powinien znaleźć się w głównym layoucie aplikacji Layout.astro.
+  2. Po prawej stronie Navigation Bar znajdują się dwa przyciski: "Preferencje" i "Wyloguj".
+  3. Kliknięcie przycisku "Preferencje" przekierowuje użytkownika do strony zarządzania preferencjami.
+  4. Kliknięcie przycisku "Wyloguj" powoduje zakończenie sesji użytkownika i automatyczne przekierowanie na stronę logowania.
 
 ## 6. Metryki sukcesu
 Kluczowe wskaźniki efektywności (KPI), które będą mierzyć sukces produktu w wersji MVP, to:
