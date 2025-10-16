@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2Icon } from "lucide-react";
@@ -9,49 +9,73 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { LoginSchema } from "@/lib/schemas/auth.schema";
 
-const loginSchema = z.object({
-  email: z.string({ required_error: "Adres e-mail jest wymagany." }).email("Nieprawidłowy format adresu e-mail."),
-  password: z.string({ required_error: "Hasło jest wymagane." }).min(1, "Hasło jest wymagane."),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+type LoginFormValues = z.infer<typeof LoginSchema>;
 
 export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      window.location.href = "/";
+    }
+  }, [shouldRedirect]);
 
   const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(LoginSchema),
     mode: "onSubmit",
     defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
-    setIsSubmitting(true);
     setError(null);
+    setSuccessMessage(null);
 
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      // TODO: Integrate with POST /api/auth/login endpoint when backend is ready.
-    } catch (submitError) {
-      setError("Nie udało się zalogować. Spróbuj ponownie później.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    startTransition(async () => {
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(values),
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          const message = payload?.error ?? "Nieprawidłowy login lub hasło.";
+          setError(message);
+          return;
+        }
+
+        setSuccessMessage("Logowanie zakończone sukcesem. Przekierowuję...");
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        setShouldRedirect(true);
+      } catch (submitError) {
+        console.error("Login failed", submitError);
+        setError("Nie udało się zalogować. Spróbuj ponownie później.");
+      }
+    });
   });
 
   const footerMessage = useMemo(() => {
-    if (isSubmitting) {
+    if (isPending) {
       return "Trwa logowanie...";
     }
 
-    if (error) {
-      return error;
+    if (successMessage) {
+      return successMessage;
     }
 
     return null;
-  }, [error, isSubmitting]);
+  }, [isPending, successMessage]);
+
+  const isSubmitting = isPending || form.formState.isSubmitting;
 
   return (
     <Card className="w-full shadow-lg">
@@ -107,6 +131,13 @@ export function LoginForm() {
                 Utwórz konto
               </a>
             </div>
+
+            {error ? (
+              <Alert variant="destructive">
+                <AlertTitle>Logowanie nie powiodło się</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
 
             {footerMessage ? (
               <p className="text-center text-sm text-muted-foreground" role="status">

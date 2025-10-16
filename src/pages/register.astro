@@ -3,6 +3,8 @@ import AuthLayout from "../layouts/AuthLayout.astro";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 
 const pageTitle = "Utwórz konto | HealthyMeal";
+
+export const prerender = false;
 ---
 
 <AuthLayout title={pageTitle}>
