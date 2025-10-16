@@ -1,0 +1,10 @@
+---
+import AuthLayout from "../layouts/AuthLayout.astro";
+import { RegisterForm } from "@/components/auth/RegisterForm";
+
+const pageTitle = "Utwórz konto | HealthyMeal";
+---
+
+<AuthLayout title={pageTitle}>
+  <RegisterForm client:load />
+</AuthLayout>

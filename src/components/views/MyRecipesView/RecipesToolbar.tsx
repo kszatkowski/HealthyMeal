@@ -3,7 +3,7 @@ import { Plus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ComponentPropsWithoutRef } from "react";
 
-interface RecipesToolbarProps extends ComponentPropsWithoutRef<"div"> {}
+type RecipesToolbarProps = ComponentPropsWithoutRef<"div">;
 
 export function RecipesToolbar({ className, ...props }: RecipesToolbarProps) {
   return (
