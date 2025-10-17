@@ -22,7 +22,7 @@ const { title = "HealthyMeal" } = Astro.props;
   <body class="min-h-screen bg-background font-sans antialiased">
     {Astro.locals.user ? <Navbar client:load user={Astro.locals.user} /> : null}
 
-    <main class="flex min-h-screen flex-col">
+    <main class="flex min-h-screen flex-col container mx-auto">
       <slot />
     </main>
   </body>

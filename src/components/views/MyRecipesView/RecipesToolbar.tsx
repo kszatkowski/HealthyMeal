@@ -30,7 +30,7 @@ export function RecipesToolbar({ className, ...props }: RecipesToolbarProps) {
         <Button variant="outline" asChild className="sm:w-auto">
           <a href="/recipes/generate" className="flex items-center gap-2">
             <Sparkles className="size-4" aria-hidden="true" />
-            Generuj przepis AI
+            Generuj przepis z AI
           </a>
         </Button>
       </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2Icon } from "lucide-react";
@@ -9,23 +9,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { RegisterSchema } from "@/lib/schemas/auth.schema";
 
-const registerSchema = z
-  .object({
-    email: z.string({ required_error: "Adres e-mail jest wymagany." }).email("Nieprawidłowy format adresu e-mail."),
-    password: z.string({ required_error: "Hasło jest wymagane." }).min(8, "Hasło musi zawierać co najmniej 8 znaków."),
-    confirmPassword: z.string({ required_error: "Potwierdzenie hasła jest wymagane." }),
-  })
-  .refine((values) => values.password === values.confirmPassword, {
-    message: "Hasła muszą być identyczne.",
-    path: ["confirmPassword"],
-  });
+const registerSchema = RegisterSchema.extend({
+  confirmPassword: z.string({ required_error: "Potwierdzenie hasła jest wymagane." }),
+}).refine((values) => values.password === values.confirmPassword, {
+  message: "Hasła muszą być identyczne.",
+  path: ["confirmPassword"],
+});
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -33,14 +33,36 @@ export function RegisterForm() {
     defaultValues: { email: "", password: "", confirmPassword: "" },
   });
 
+  useEffect(() => {
+    if (shouldRedirect) {
+      window.location.href = "/";
+    }
+  }, [shouldRedirect]);
+
   const onSubmit = form.handleSubmit(async (values) => {
     setIsSubmitting(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      // TODO: Integrate with POST /api/auth/register endpoint when backend is ready.
-    } catch (submitError) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { confirmPassword, ...payload } = values;
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const result = (await response.json().catch(() => null)) as { error?: string } | null;
+        setError(result?.error ?? "Nie udało się utworzyć konta. Spróbuj ponownie później.");
+        return;
+      }
+
+      setSuccessMessage("Konto zostało utworzone. Przekierowuję...");
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      setShouldRedirect(true);
+    } catch {
       setError("Nie udało się utworzyć konta. Spróbuj ponownie później.");
     } finally {
       setIsSubmitting(false);
@@ -52,12 +74,12 @@ export function RegisterForm() {
       return "Trwa rejestracja...";
     }
 
-    if (error) {
-      return error;
+    if (successMessage) {
+      return successMessage;
     }
 
     return null;
-  }, [error, isSubmitting]);
+  }, [isSubmitting, successMessage]);
 
   return (
     <Card className="w-full shadow-lg">
@@ -127,6 +149,13 @@ export function RegisterForm() {
                 Zaloguj się
               </a>
             </div>
+
+            {error ? (
+              <Alert variant="destructive">
+                <AlertTitle>Rejestracja nie powiodła się</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
 
             {footerMessage ? (
               <p className="text-center text-sm text-muted-foreground" role="status">

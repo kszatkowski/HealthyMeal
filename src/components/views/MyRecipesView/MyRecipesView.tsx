@@ -44,6 +44,7 @@ export function MyRecipesView({ className }: { className?: string }) {
           setShowOnboardingNotice(false);
           ensureToasterMounted();
         }}
+        className="mt-6"
       />
 
       <RecipesToolbar />

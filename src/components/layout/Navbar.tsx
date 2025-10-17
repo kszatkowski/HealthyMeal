@@ -54,7 +54,7 @@ export function Navbar({ user }: NavbarProps) {
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
+      <div className="mx-auto flex h-16 w-full container items-center justify-between">
         <a
           href="/"
           className="text-lg font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
