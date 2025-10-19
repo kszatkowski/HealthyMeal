@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
 import { z } from "zod";
 
-import { DEFAULT_USER_ID } from "../../../db/supabase.client.ts";
 import { createRecipe, listRecipes, RecipeServiceError } from "../../../lib/services/recipes.service.ts";
 import type { RecipeCreateCommand } from "../../../types.ts";
 
@@ -131,7 +130,7 @@ function buildErrorResponse(code: string, message?: string) {
   );
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
   let payload: unknown;
 
   try {
@@ -153,7 +152,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   try {
     const command = toRecipeCommand(validation.data);
-    const recipe = await createRecipe(command);
+    const recipe = await createRecipe(locals.supabase, locals.user?.id ?? "", command);
 
     return new Response(JSON.stringify(recipe), {
       status: 201,
@@ -176,7 +175,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 };
 
-export const GET: APIRoute = async ({ request }) => {
+export const GET: APIRoute = async ({ request, locals }) => {
   const url = new URL(request.url);
   const query = Object.fromEntries(url.searchParams.entries());
 
@@ -190,10 +189,8 @@ export const GET: APIRoute = async ({ request }) => {
     return buildErrorResponse("invalid_query_params", validation.error.issues[0]?.message);
   }
 
-  const userId = DEFAULT_USER_ID;
-
   try {
-    const result = await listRecipes(userId, validation.data);
+    const result = await listRecipes(locals.supabase, locals.user?.id ?? "", validation.data);
 
     return new Response(JSON.stringify(result), {
       status: 200,

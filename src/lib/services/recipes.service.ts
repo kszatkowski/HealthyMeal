@@ -1,4 +1,4 @@
-import { supabaseClient, DEFAULT_USER_ID } from "../../db/supabase.client.ts";
+import type { SupabaseServerClient } from "../../db/supabase.client.ts";
 import type { Database } from "../../db/database.types.ts";
 import type {
   ProductListItemDto,
@@ -69,20 +69,27 @@ function escapeSearchTerm(term: string): string {
   return term.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
-export async function createRecipe(command: RecipeCreateCommand): Promise<RecipeResponseDto> {
+export async function createRecipe(
+  supabase: SupabaseServerClient,
+  userId: string,
+  command: RecipeCreateCommand
+): Promise<RecipeResponseDto> {
   validateIngredientCount(command.ingredients);
   validateInstructionLength(command.instructions);
   validateUnits(command.ingredients);
   ensureUniqueIngredients(command.ingredients);
 
-  const productMap = await fetchProductsMap(command.ingredients.map((item) => item.productId));
+  const productMap = await fetchProductsMap(
+    supabase,
+    command.ingredients.map((item) => item.productId)
+  );
 
   if (productMap.size !== command.ingredients.length) {
     throw new RecipeServiceError("product_not_found", "One or more referenced products do not exist.");
   }
 
   const recipeInsertPayload = {
-    user_id: DEFAULT_USER_ID,
+    user_id: userId,
     name: command.name,
     instructions: command.instructions,
     meal_type: command.mealType,
@@ -90,7 +97,7 @@ export async function createRecipe(command: RecipeCreateCommand): Promise<Recipe
     is_ai_generated: command.isAiGenerated ?? false,
   } satisfies Database["public"]["Tables"]["recipes"]["Insert"];
 
-  const { data: recipeRow, error: recipeError } = await supabaseClient
+  const { data: recipeRow, error: recipeError } = await supabase
     .from("recipes")
     .insert(recipeInsertPayload)
     .select("id, user_id, name, meal_type, difficulty, instructions, is_ai_generated, created_at, updated_at")
@@ -111,18 +118,18 @@ export async function createRecipe(command: RecipeCreateCommand): Promise<Recipe
     unit: ingredient.unit,
   })) satisfies Database["public"]["Tables"]["recipe_ingredients"]["Insert"][];
 
-  const { data: ingredientRows, error: ingredientError } = await supabaseClient
+  const { data: ingredientRows, error: ingredientError } = await supabase
     .from("recipe_ingredients")
     .insert(ingredientInsertPayload)
     .select("id, product_id, amount, unit");
 
   if (ingredientError) {
-    await cleanupRecipeOnFailure(recipeRow.id);
+    await cleanupRecipeOnFailure(supabase, recipeRow.id);
     throw mapInsertIngredientsError(ingredientError);
   }
 
   if (!ingredientRows) {
-    await cleanupRecipeOnFailure(recipeRow.id);
+    await cleanupRecipeOnFailure(supabase, recipeRow.id);
     throw new RecipeServiceError("internal_error", "Ingredient creation returned no data.");
   }
 
@@ -155,8 +162,12 @@ export async function createRecipe(command: RecipeCreateCommand): Promise<Recipe
   };
 }
 
-export async function listRecipes(userId: string, filters: RecipeListFilters): Promise<RecipeListResponseDto> {
-  const query = supabaseClient
+export async function listRecipes(
+  supabase: SupabaseServerClient,
+  userId: string,
+  filters: RecipeListFilters
+): Promise<RecipeListResponseDto> {
+  const query = supabase
     .from("recipes")
     .select("id, name, meal_type, difficulty, is_ai_generated, created_at, updated_at", { count: "exact" })
     .eq("user_id", userId)
@@ -238,12 +249,15 @@ function ensureUniqueIngredients(ingredients: RecipeCreateCommand["ingredients"]
   }
 }
 
-async function fetchProductsMap(productIds: string[]): Promise<Map<string, ProductListItemDto>> {
+async function fetchProductsMap(
+  supabase: SupabaseServerClient,
+  productIds: string[]
+): Promise<Map<string, ProductListItemDto>> {
   if (productIds.length === 0) {
     return new Map();
   }
 
-  const { data, error } = await supabaseClient.from("products").select("id, name").in("id", productIds);
+  const { data, error } = await supabase.from("products").select("id, name").in("id", productIds);
 
   if (error) {
     throw new RecipeServiceError("internal_error", "Failed to fetch products.", error);
@@ -257,8 +271,8 @@ async function fetchProductsMap(productIds: string[]): Promise<Map<string, Produ
   return map;
 }
 
-async function cleanupRecipeOnFailure(recipeId: string): Promise<void> {
-  await supabaseClient.from("recipes").delete().eq("id", recipeId);
+async function cleanupRecipeOnFailure(supabase: SupabaseServerClient, recipeId: string): Promise<void> {
+  await supabase.from("recipes").delete().eq("id", recipeId);
 }
 
 function mapInsertRecipeError(error: { code?: string; message: string }): RecipeServiceError {

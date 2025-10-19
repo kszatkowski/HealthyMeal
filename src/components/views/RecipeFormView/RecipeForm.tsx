@@ -32,7 +32,7 @@ function toCreateCommand(data: RecipeFormViewModel): RecipeCreateCommand {
 }
 
 const navigateToRecipes = () => {
-  window.location.href = "/recipes";
+  window.location.href = "/";
 };
 
 export function RecipeForm() {
