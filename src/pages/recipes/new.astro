@@ -1,0 +1,10 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { RecipeForm } from "@/components/views/RecipeFormView/RecipeForm";
+---
+
+<Layout title="Nowy przepis">
+  <section class="flex flex-1 flex-col py-10">
+    <RecipeForm client:load />
+  </section>
+</Layout>

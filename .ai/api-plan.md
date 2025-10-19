@@ -368,7 +368,7 @@
   - Deletions cascade via foreign keys when user removed.
 
 - Recipes
-  - `name` ≤ 100 chars; `instructions` ≤ 5000 chars (VARCHAR constraints).
+  - `name` ≤ 50 chars; `instructions` ≤ 5000 chars (VARCHAR constraints).
   - `mealType`, `difficulty`, `unit` constrained by enums; validate early.
   - Ingredients require positive `amount` and at least one entry; limit to 50 to maintain payload size.
   - Updates replace ingredient set within a transaction to maintain integrity.

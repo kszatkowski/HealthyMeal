@@ -13,7 +13,7 @@
   - `Content-Type: application/json`
 - **Parametry**:
   - **Wymagane w body**:
-    - `name` (`string`, 1-100 znaków)
+    - `name` (`string`, 1-50 znaków)
     - `mealType` (`"breakfast"|"lunch"|"dinner"|"dessert"|"snack"`)
     - `difficulty` (`"easy"|"medium"|"hard"`)
     - `instructions` (`string`, 1-5000 znaków)

@@ -84,7 +84,7 @@ Stores all recipes, both user-created and AI-generated.
 | ----------------- | ------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------ |
 | `id`              | `uuid`              | `PRIMARY KEY`, `DEFAULT gen_random_uuid()`                                           | Unique identifier for the recipe.                      |
 | `user_id`         | `uuid`              | `NOT NULL`, `REFERENCES users(id) ON DELETE CASCADE`                              | Foreign key to the user who owns the recipe.           |
-| `name`            | `varchar(100)`              | `NOT NULL`                                                                           | Name of the recipe.                                    |
+| `name`            | `varchar(50)`              | `NOT NULL`                                                                           | Name of the recipe.                                    |
 | `instructions`    | `varchar(5000)`              | `NOT NULL`                                                                           | Step-by-step preparation instructions.                 |
 | `meal_type`       | `meal_type`         | `NOT NULL`                                                                           | Category of the meal (e.g., 'breakfast', 'dinner').    |
 | `difficulty`      | `recipe_difficulty` | `NOT NULL`                                                                           | Difficulty level ('easy', 'medium', 'hard').           |
