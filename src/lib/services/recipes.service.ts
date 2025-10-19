@@ -30,6 +30,7 @@ type RecipeServiceErrorCode =
   | "instructions_too_long"
   | "invalid_ingredient_unit"
   | "invalid_query_params"
+  | "recipe_not_found"
   | "internal_error";
 
 export class RecipeServiceError extends Error {
@@ -273,6 +274,14 @@ async function fetchProductsMap(
 
 async function cleanupRecipeOnFailure(supabase: SupabaseServerClient, recipeId: string): Promise<void> {
   await supabase.from("recipes").delete().eq("id", recipeId);
+}
+
+export async function deleteRecipe(supabase: SupabaseServerClient, userId: string, recipeId: string): Promise<void> {
+  const { error } = await supabase.from("recipes").delete().eq("id", recipeId).eq("user_id", userId);
+
+  if (error) {
+    throw new RecipeServiceError("internal_error", "Failed to delete recipe.", error);
+  }
 }
 
 function mapInsertRecipeError(error: { code?: string; message: string }): RecipeServiceError {

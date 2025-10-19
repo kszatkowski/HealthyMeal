@@ -15,7 +15,7 @@ export interface UseRecipesResult {
   reload: () => void;
 }
 
-const DEFAULT_LIMIT = 1;
+const DEFAULT_LIMIT = 12;
 const DEFAULT_SORT: RecipeFiltersViewModel["sort"] = "createdAt.desc";
 
 const DEFAULT_FILTERS: RecipeFiltersViewModel = {
@@ -93,7 +93,7 @@ export function useRecipes(): UseRecipesResult {
   const [recipes, setRecipes] = useState<RecipeListItemDto[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta>({ ...DEFAULT_PAGINATION });
   const [filters, setFilters] = useState<RecipeFiltersViewModel>({ ...DEFAULT_FILTERS });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -243,14 +243,12 @@ export function useRecipes(): UseRecipesResult {
           const message = await parseErrorResponse(response);
           throw new Error(message);
         }
-
-        reload();
       } catch (deleteError) {
-        const message = deleteError instanceof Error ? deleteError.message : "Nie udało się usunąć przepisu.";
+        const message = "Nie udało się usunąć przepisu.";
 
         setRecipes(previousRecipesRef.current ?? []);
         setPagination(previousPaginationRef.current ?? { ...DEFAULT_PAGINATION });
-        setError(deleteError instanceof Error ? deleteError : new Error(message));
+        setError(new Error(""));
         toast.error(message);
 
         throw deleteError;
@@ -259,7 +257,7 @@ export function useRecipes(): UseRecipesResult {
         previousPaginationRef.current = null;
       }
     },
-    [pagination, recipes, reload]
+    [pagination, recipes]
   );
 
   return useMemo<UseRecipesResult>(
