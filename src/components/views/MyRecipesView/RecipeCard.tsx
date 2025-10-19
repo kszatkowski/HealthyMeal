@@ -68,11 +68,9 @@ export function RecipeCard({ recipe, onDelete }: RecipeCardProps) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={(event) => event.preventDefault()}>
                   <DropdownMenuLabel>Akcje</DropdownMenuLabel>
-                  <DropdownMenuItem asChild>
-                    <a href={`/recipes/${recipe.id}/edit`} className="flex items-center gap-2">
-                      <Pencil className="size-4" aria-hidden="true" />
-                      Edytuj
-                    </a>
+                  <DropdownMenuItem onSelect={() => (window.location.href = `/recipes/${recipe.id}/edit`)}>
+                    <Pencil className="size-4" aria-hidden="true" />
+                    Edytuj
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={(event) => {

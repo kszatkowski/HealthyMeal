@@ -163,6 +163,206 @@ export async function createRecipe(
   };
 }
 
+export async function updateRecipe(
+  supabase: SupabaseServerClient,
+  userId: string,
+  recipeId: string,
+  command: RecipeCreateCommand
+): Promise<RecipeResponseDto> {
+  // Validate input parameters
+  validateIngredientCount(command.ingredients);
+  validateInstructionLength(command.instructions);
+  validateUnits(command.ingredients);
+  ensureUniqueIngredients(command.ingredients);
+
+  // Fetch and verify product existence
+  const productMap = await fetchProductsMap(
+    supabase,
+    command.ingredients.map((item) => item.productId)
+  );
+
+  if (productMap.size !== command.ingredients.length) {
+    throw new RecipeServiceError("product_not_found", "One or more referenced products do not exist.");
+  }
+
+  // Verify that the recipe exists and belongs to the user
+  const { data: existingRecipe, error: fetchError } = await supabase
+    .from("recipes")
+    .select("id, user_id")
+    .eq("id", recipeId)
+    .eq("user_id", userId)
+    .single();
+
+  if (fetchError || !existingRecipe) {
+    throw new RecipeServiceError("recipe_not_found", "Recipe not found or you don't have permission to update it.");
+  }
+
+  // Update recipe record
+  const recipeUpdatePayload = {
+    name: command.name,
+    instructions: command.instructions,
+    meal_type: command.mealType,
+    difficulty: command.difficulty,
+    is_ai_generated: command.isAiGenerated ?? false,
+  } satisfies Database["public"]["Tables"]["recipes"]["Update"];
+
+  const { error: updateRecipeError } = await supabase
+    .from("recipes")
+    .update(recipeUpdatePayload)
+    .eq("id", recipeId)
+    .eq("user_id", userId);
+
+  if (updateRecipeError) {
+    throw mapUpdateRecipeError(updateRecipeError);
+  }
+
+  // Delete existing ingredients for the recipe
+  const { error: deleteIngredientsError } = await supabase
+    .from("recipe_ingredients")
+    .delete()
+    .eq("recipe_id", recipeId);
+
+  if (deleteIngredientsError) {
+    throw new RecipeServiceError("internal_error", "Failed to delete existing ingredients.", deleteIngredientsError);
+  }
+
+  // Insert new ingredients
+  const ingredientInsertPayload = command.ingredients.map((ingredient) => ({
+    recipe_id: recipeId,
+    product_id: ingredient.productId,
+    amount: ingredient.amount,
+    unit: ingredient.unit,
+  })) satisfies Database["public"]["Tables"]["recipe_ingredients"]["Insert"][];
+
+  const { data: ingredientRows, error: ingredientError } = await supabase
+    .from("recipe_ingredients")
+    .insert(ingredientInsertPayload)
+    .select("id, product_id, amount, unit");
+
+  if (ingredientError) {
+    throw mapInsertIngredientsError(ingredientError);
+  }
+
+  if (!ingredientRows) {
+    throw new RecipeServiceError("internal_error", "Ingredient creation returned no data.");
+  }
+
+  // Fetch the updated recipe to return the complete response
+  const { data: updatedRecipeRow, error: fetchUpdatedError } = await supabase
+    .from("recipes")
+    .select("id, user_id, name, meal_type, difficulty, instructions, is_ai_generated, created_at, updated_at")
+    .eq("id", recipeId)
+    .single();
+
+  if (fetchUpdatedError || !updatedRecipeRow) {
+    throw new RecipeServiceError("internal_error", "Failed to fetch updated recipe.", fetchUpdatedError);
+  }
+
+  // Map ingredients to DTOs
+  const ingredients = ingredientRows.map<RecipeIngredientDto>((ingredient) => {
+    const product = productMap.get(ingredient.product_id);
+
+    if (!product) {
+      throw new RecipeServiceError("internal_error", "Failed to correlate product snapshot for ingredient.");
+    }
+
+    return {
+      id: ingredient.id,
+      amount: ingredient.amount,
+      unit: ingredient.unit,
+      product,
+    };
+  });
+
+  return {
+    id: updatedRecipeRow.id,
+    userId: updatedRecipeRow.user_id,
+    name: updatedRecipeRow.name,
+    mealType: updatedRecipeRow.meal_type,
+    difficulty: updatedRecipeRow.difficulty,
+    instructions: updatedRecipeRow.instructions,
+    isAiGenerated: updatedRecipeRow.is_ai_generated,
+    createdAt: updatedRecipeRow.created_at,
+    updatedAt: updatedRecipeRow.updated_at,
+    ingredients,
+  };
+}
+
+export async function getRecipe(
+  supabase: SupabaseServerClient,
+  userId: string,
+  recipeId: string
+): Promise<RecipeResponseDto> {
+  // Fetch recipe with its ingredients and product details
+  const { data: recipeRow, error: recipeError } = await supabase
+    .from("recipes")
+    .select(
+      `
+      id,
+      user_id,
+      name,
+      meal_type,
+      difficulty,
+      instructions,
+      is_ai_generated,
+      created_at,
+      updated_at,
+      recipe_ingredients(
+        id,
+        product_id,
+        amount,
+        unit,
+        products(id, name)
+      )
+      `
+    )
+    .eq("id", recipeId)
+    .eq("user_id", userId)
+    .single();
+
+  if (recipeError || !recipeRow) {
+    throw new RecipeServiceError("recipe_not_found", "Recipe not found or you don't have permission to access it.");
+  }
+
+  // Map recipe ingredients to DTOs
+  const ingredients = (
+    recipeRow.recipe_ingredients as {
+      id: string;
+      product_id: string;
+      amount: number;
+      unit: Database["public"]["Enums"]["recipe_unit"];
+      products: { id: string; name: string } | null;
+    }[]
+  ).map<RecipeIngredientDto>((ingredient) => {
+    if (!ingredient.products) {
+      throw new RecipeServiceError("internal_error", "Failed to load product data for ingredient.");
+    }
+
+    return {
+      id: ingredient.id,
+      amount: ingredient.amount,
+      unit: ingredient.unit,
+      product: {
+        id: ingredient.products.id,
+        name: ingredient.products.name,
+      },
+    };
+  });
+
+  return {
+    id: recipeRow.id,
+    userId: recipeRow.user_id,
+    name: recipeRow.name,
+    mealType: recipeRow.meal_type,
+    difficulty: recipeRow.difficulty,
+    instructions: recipeRow.instructions,
+    isAiGenerated: recipeRow.is_ai_generated,
+    createdAt: recipeRow.created_at,
+    updatedAt: recipeRow.updated_at,
+    ingredients,
+  };
+}
+
 export async function listRecipes(
   supabase: SupabaseServerClient,
   userId: string,
@@ -298,4 +498,12 @@ function mapInsertIngredientsError(error: { code?: string; message: string }): R
   }
 
   return new RecipeServiceError("internal_error", "Failed to store recipe ingredients.", error);
+}
+
+function mapUpdateRecipeError(error: { code?: string; message: string }): RecipeServiceError {
+  if (error.code === "23514" || error.code === "22001") {
+    return new RecipeServiceError("instructions_too_long");
+  }
+
+  return new RecipeServiceError("internal_error", "Failed to update recipe.", error);
 }

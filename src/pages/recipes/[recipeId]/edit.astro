@@ -1,0 +1,32 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { RecipeForm } from "@/components/views/RecipeFormView/RecipeForm";
+import { getRecipe, RecipeServiceError } from "@/lib/services/recipes.service";
+
+const { recipeId } = Astro.params;
+const supabaseClient = Astro.locals.supabase;
+const userId = Astro.locals.user?.id;
+
+// Validate that we have required context
+if (!userId || !recipeId) {
+  return new Response(null, { status: 302, headers: { location: "/" } });
+}
+
+// Fetch recipe data using service
+let recipeData;
+try {
+  recipeData = await getRecipe(supabaseClient, userId, recipeId);
+} catch (error) {
+  if (error instanceof RecipeServiceError && error.code === "recipe_not_found") {
+    return new Response(null, { status: 302, headers: { location: "/" } });
+  }
+  console.error("Failed to fetch recipe for editing:", error);
+  return new Response(null, { status: 302, headers: { location: "/" } });
+}
+---
+
+<Layout title={`Edytuj: ${recipeData.name}`}>
+  <section class="flex flex-1 flex-col py-10">
+    <RecipeForm client:load recipeId={recipeId} initialData={recipeData} />
+  </section>
+</Layout>

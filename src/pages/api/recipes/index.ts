@@ -2,37 +2,8 @@ import type { APIRoute } from "astro";
 import { z } from "zod";
 
 import { createRecipe, listRecipes, RecipeServiceError } from "../../../lib/services/recipes.service.ts";
+import { recipeUpdateCommandSchema } from "../../../lib/schemas/recipe.schema.ts";
 import type { RecipeCreateCommand } from "../../../types.ts";
-
-const ingredientSchema = z
-  .object({
-    productId: z.string().uuid(),
-    amount: z.number({ invalid_type_error: "amount must be a number" }).positive("amount must be greater than zero"),
-    unit: z.enum(["gram", "kilogram", "milliliter", "liter", "teaspoon", "tablespoon", "cup", "piece"]),
-  })
-  .strict();
-
-const recipeSchema = z
-  .object({
-    name: z
-      .string({ invalid_type_error: "name must be a string" })
-      .min(1, "name must not be empty")
-      .max(100, "name must not exceed 100 characters"),
-    mealType: z.enum(["breakfast", "lunch", "dinner", "dessert", "snack"]),
-    difficulty: z.enum(["easy", "medium", "hard"]),
-    instructions: z
-      .string({ invalid_type_error: "instructions must be a string" })
-      .min(1, "instructions must not be empty")
-      .max(5000, "instructions must not exceed 5000 characters"),
-    isAiGenerated: z.boolean().optional(),
-    ingredients: z
-      .array(ingredientSchema, {
-        invalid_type_error: "ingredients must be an array",
-      })
-      .min(1, "ingredients must include at least one item")
-      .max(50, "ingredients must not exceed 50 items"),
-  })
-  .strict();
 
 const recipeListQuerySchema = z
   .object({
@@ -97,7 +68,7 @@ const errorMessageMap: Record<string, string> = {
   internal_error: "Failed to create recipe due to an internal error.",
 };
 
-function toRecipeCommand(input: z.infer<typeof recipeSchema>): RecipeCreateCommand {
+function toRecipeCommand(input: z.infer<typeof recipeUpdateCommandSchema>): RecipeCreateCommand {
   return {
     name: input.name,
     mealType: input.mealType,
@@ -140,7 +111,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return buildErrorResponse("invalid_payload", "Request body must be valid JSON.");
   }
 
-  const validation = recipeSchema.safeParse(payload);
+  const validation = recipeUpdateCommandSchema.safeParse(payload);
 
   if (!validation.success) {
     console.warn("POST /api/recipes: Payload validation failed", {

@@ -9,13 +9,18 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Toaster } from "@/components/ui/sonner";
-import type { RecipeCreateCommand } from "@/types";
+import type { RecipeCreateCommand, RecipeResponseDto } from "@/types";
 
 import { IngredientsEditor } from "./IngredientsEditor";
 import { defaultRecipeFormValues, recipeFormSchema } from "./schema";
 import type { RecipeFormViewModel } from "./schema";
 
 type IngredientErrors = NonNullable<Parameters<typeof IngredientsEditor>[0]["errors"]>;
+
+interface RecipeFormProps {
+  recipeId?: string;
+  initialData?: RecipeResponseDto;
+}
 
 function toCreateCommand(data: RecipeFormViewModel): RecipeCreateCommand {
   return {
@@ -35,12 +40,33 @@ const navigateToRecipes = () => {
   window.location.href = "/";
 };
 
-export function RecipeForm() {
+export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
   const [hasMountedToaster, setHasMountedToaster] = useState(false);
+  const isEditMode = !!recipeId && !!initialData;
+
+  // Convert initial data to form values if editing
+  const getInitialValues = useCallback((): RecipeFormViewModel => {
+    if (!isEditMode || !initialData) {
+      return defaultRecipeFormValues;
+    }
+
+    return {
+      name: initialData.name,
+      mealType: initialData.mealType,
+      difficulty: initialData.difficulty,
+      instructions: initialData.instructions,
+      ingredients: initialData.ingredients.map((ingredient) => ({
+        productId: ingredient.product.id,
+        productName: ingredient.product.name,
+        amount: ingredient.amount,
+        unit: ingredient.unit,
+      })),
+    };
+  }, [isEditMode, initialData]);
 
   const form = useForm<RecipeFormViewModel>({
     resolver: zodResolver(recipeFormSchema),
-    defaultValues: defaultRecipeFormValues,
+    defaultValues: getInitialValues(),
     mode: "onTouched",
   });
 
@@ -60,8 +86,11 @@ export function RecipeForm() {
 
       try {
         const payload = toCreateCommand(data);
-        const response = await fetch("/api/recipes", {
-          method: "POST",
+        const method = isEditMode ? "PUT" : "POST";
+        const endpoint = isEditMode ? `/api/recipes/${recipeId}` : "/api/recipes";
+
+        const response = await fetch(endpoint, {
+          method,
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
@@ -86,26 +115,38 @@ export function RecipeForm() {
                 return (body as { error: { message: string } }).error.message;
               }
 
-              return "Nie udało się zapisać przepisu.";
+              return isEditMode ? "Nie udało się zaktualizować przepisu." : "Nie udało się zapisać przepisu.";
             })
-            .catch(() => "Nie udało się zapisać przepisu.");
+            .catch(() => (isEditMode ? "Nie udało się zaktualizować przepisu." : "Nie udało się zapisać przepisu."));
 
           toast.error(message);
           return;
         }
 
-        toast.success("Przepis został zapisany");
+        const successMessage = isEditMode ? "Przepis został zaktualizowany" : "Przepis został zapisany";
+        toast.success(successMessage);
         reset(defaultRecipeFormValues);
         setTimeout(navigateToRecipes, 1000);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Nie udało się zapisać przepisu.";
+        const message = error instanceof Error ? error.message : "Nie udało się przetwarzać żądania.";
         toast.error(message);
       }
     },
-    [ensureToasterMounted, reset]
+    [ensureToasterMounted, reset, isEditMode, recipeId]
   );
 
   const disableSubmit = formState.isSubmitting;
+  const pageTitle = isEditMode ? "Edytuj przepis" : "Dodaj nowy przepis";
+  const pageDescription = isEditMode
+    ? "Zaktualizuj informacje o przepisie i jego składniki."
+    : "Wypełnij poniższe pola, aby ręcznie dodać przepis do swojej kolekcji.";
+  const submitButtonText = disableSubmit
+    ? isEditMode
+      ? "Aktualizowanie..."
+      : "Zapisywanie..."
+    : isEditMode
+      ? "Aktualizuj przepis"
+      : "Zapisz przepis";
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-12">
@@ -114,10 +155,8 @@ export function RecipeForm() {
       <header className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h1 className="text-3xl font-semibold text-foreground">Dodaj nowy przepis</h1>
-            <p className="text-muted-foreground">
-              Wypełnij poniższe pola, aby ręcznie dodać przepis do swojej kolekcji.
-            </p>
+            <h1 className="text-3xl font-semibold text-foreground">{pageTitle}</h1>
+            <p className="text-muted-foreground">{pageDescription}</p>
           </div>
           <Button
             type="button"
@@ -248,7 +287,7 @@ export function RecipeForm() {
               Anuluj
             </Button>
             <Button type="submit" disabled={disableSubmit}>
-              {disableSubmit ? "Zapisywanie..." : "Zapisz przepis"}
+              {submitButtonText}
             </Button>
           </div>
         </form>
