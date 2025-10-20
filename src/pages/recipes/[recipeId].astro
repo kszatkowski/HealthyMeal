@@ -1,0 +1,148 @@
+---
+import { getRecipe, RecipeServiceError } from "@/lib/services/recipes.service";
+import { MEAL_TYPE_LABELS, DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/constants";
+import Layout from "@/layouts/Layout.astro";
+import { Badge } from "@/components/ui/badge";
+import RecipeActions from "@/components/views/RecipeDetailsView/RecipeActions";
+import type { RecipeResponseDto } from "@/types";
+import { formatRelative } from "date-fns";
+import { pl } from "date-fns/locale";
+
+const { recipeId } = Astro.params;
+
+if (!recipeId) {
+  return new Response(null, { status: 404 });
+}
+
+let recipe: RecipeResponseDto;
+
+try {
+  const user = Astro.locals.user;
+  if (!user) {
+    return new Response(null, { status: 401 });
+  }
+  recipe = await getRecipe(Astro.locals.supabase, user.id, recipeId);
+} catch (error) {
+  if (error instanceof RecipeServiceError && error.code === "recipe_not_found") {
+    return new Response(null, { status: 404 });
+  }
+  return new Response(null, { status: 500 });
+}
+
+const updatedLabel = formatRelative(new Date(recipe.updatedAt), new Date(), { locale: pl });
+const createdLabel = formatRelative(new Date(recipe.createdAt), new Date(), { locale: pl });
+---
+
+<Layout title={recipe.name}>
+  <main class="flex min-h-screen flex-col bg-gradient-to-br from-background to-muted/30">
+    <div class="flex-1">
+      <div class="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Header Section with Actions */}
+        <div class="mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div class="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-start">
+            <div class="flex-1">
+              <h1 class="mb-3 text-4xl font-bold tracking-tight text-foreground">
+                {recipe.name}
+              </h1>
+              <div class="flex flex-wrap gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {MEAL_TYPE_LABELS[recipe.mealType] || recipe.mealType}
+                </Badge>
+                <Badge variant={DIFFICULTY_COLORS[recipe.difficulty] || "outline"} className="text-xs">
+                  {DIFFICULTY_LABELS[recipe.difficulty] || recipe.difficulty}
+                </Badge>
+                {recipe.isAiGenerated && <Badge className="text-xs">Wygenerowany przez AI</Badge>}
+              </div>
+            </div>
+            <RecipeActions client:load recipeId={recipeId} recipeName={recipe.name} />
+          </div>
+
+          <div class="flex flex-wrap gap-4 border-t border-border pt-4 text-sm text-muted-foreground">
+            <div>
+              <span class="font-medium text-foreground">Zaktualizowany:</span>
+              {" "}
+              {updatedLabel}
+            </div>
+            <div>
+              <span class="font-medium text-foreground">Utworzony:</span>
+              {" "}
+              {createdLabel}
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+          {/* Ingredients Section */}
+          <section
+            class="overflow-hidden rounded-lg border border-border bg-card shadow-sm transition hover:shadow-md animate-in fade-in slide-in-from-top-4 duration-500 animation-delay-100"
+          >
+            <div class="border-b border-border bg-muted/50 px-6 py-4">
+              <h2 class="text-lg font-semibold text-foreground">Składniki</h2>
+            </div>
+            <div class="px-6 py-4">
+              {
+                recipe.ingredients.length > 0 ? (
+                  <ul class="space-y-3">
+                    {recipe.ingredients.map((ingredient) => (
+                      <li class="flex items-center justify-between gap-4 rounded-md bg-muted/30 px-4 py-3 transition hover:bg-muted/60">
+                        <span class="font-medium text-foreground">{ingredient.product.name}</span>
+                        <span class="rounded-md bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                          {ingredient.amount} {ingredient.unit}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div class="flex h-24 items-center justify-center rounded-md bg-muted/50 text-center text-muted-foreground">
+                    <p>Brak składników w tym przepisie.</p>
+                  </div>
+                )
+              }
+            </div>
+          </section>
+
+          {/* Instructions Section */}
+          <section
+            class="overflow-hidden rounded-lg border border-border bg-card shadow-sm transition hover:shadow-md animate-in fade-in slide-in-from-top-4 duration-500 animation-delay-200"
+          >
+            <div class="border-b border-border bg-muted/50 px-6 py-4">
+              <h2 class="text-lg font-semibold text-foreground">Instrukcje przygotowania</h2>
+            </div>
+            <div class="px-6 py-4">
+              <div class="space-y-4">
+                <p class="whitespace-pre-wrap leading-relaxed text-foreground">
+                  {recipe.instructions}
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  @keyframes slide-in-from-top {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-in {
+    animation: slide-in-from-top 0.5s ease-out;
+  }
+
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+</style>

@@ -79,6 +79,23 @@ Architektura jest zorientowana na realizację kluczowych przepływów użytkowni
   - **Dostępność:** Zapewnienie, że interaktywne elementy są w pełni dostępne.
   - **Bezpieczeństwo:** Dostęp do widoku chroniony, operacje modyfikacji autoryzowane tokenem.
 
+### Widok 6: Przegląd Przepisu (Recipe Details View)
+- **Ścieżka:** `/recipes/[id]`
+- **Główny cel:** Wyświetlanie szczegółowych informacji o wybranym przepisie.
+- **Kluczowe informacje do wyświetlenia:**
+  - Nazwa przepisu,
+  - Rodzaj posiłku,
+  - Poziom trudności,
+  - Lista składników z ilościami,
+  - Instrukcje krok po kroku.
+- **Kluczowe komponenty widoku:**
+  - `RecipeDetails`: Główny komponent (może być statyczną stroną Astro) renderujący wszystkie informacje o przepisie.
+  - Przyciski akcji "Edytuj" i "Usuń", prowadzące odpowiednio do `(/recipes/[id]/edit)` oraz inicjujące modal potwierdzenia usunięcia.
+- **UX, dostępność i względy bezpieczeństwa:**
+  - **UX:** Czytelny i przejrzysty układ. Łatwy powrót do listy przepisów.
+  - **Dostępność:** Użycie prawidłowej hierarchii nagłówków (H1 dla nazwy, H2 dla sekcji "Składniki", "Instrukcje"). Listy składników i instrukcji jako uporządkowane/nieuporządkowane listy HTML.
+  - **Bezpieczeństwo:** Dostępny tylko dla właściciela przepisu. Weryfikacja uprawnień realizowana przez middleware w Astro oraz na poziomie API.
+
 ## 3. Mapa podróży użytkownika
 
 1.  **Rejestracja i Onboarding:**
@@ -92,9 +109,10 @@ Architektura jest zorientowana na realizację kluczowych przepływów użytkowni
     - Wprowadza ewentualne poprawki i klika "Zapisz".
     - Zostaje przekierowany z powrotem na `(/)`, gdzie widzi nowy przepis na liście i otrzymuje powiadomienie "toast" o sukcesie.
 3.  **Zarządzanie Przepisami (CRUD):**
-    - **Tworzenie:** Użytkownik klika "Dodaj nowy przepis" na `(/)`, przechodzi do `(/recipes/new)`, wypełnia formularz i po zapisie wraca na `(/)`.
-    - **Edycja:** Na `(/)` klika przycisk "Edytuj" na `RecipeCard`, co prowadzi do `(/recipes/[id]/edit)`. Po zapisaniu zmian wraca na `(/)`.
-    - **Usuwanie:** Na `(/)` klika "Usuń" na `RecipeCard`, co otwiera `Delete Confirmation Modal`. Po potwierdzeniu, przepis znika z listy (optimistic UI), a w tle wysyłane jest żądanie do API. W razie błędu, element wraca na listę, a użytkownik otrzymuje powiadomienie "toast" o niepowodzeniu.
+    - **Tworzenie (Create):** Użytkownik klika "Dodaj nowy przepis" na `(/)`, przechodzi do `(/recipes/new)`, wypełnia formularz i po zapisie wraca na `(/)`.
+    - **Przeglądanie (Read):** Użytkownik na `(/)` klika w `RecipeCard` (poza przyciskami akcji), co prowadzi go do strony szczegółów przepisu `(/recipes/[id])`.
+    - **Edycja (Update):** Użytkownik może przejść do edycji z dwóch miejsc: klikając przycisk "Edytuj" na `RecipeCard` na stronie `(/)` lub z poziomu widoku szczegółów `(/recipes/[id])`. Obie akcje prowadzą do `(/recipes/[id]/edit)`. Po zapisaniu zmian wraca na `(/)`.
+    - **Usuwanie (Delete):** Podobnie jak w przypadku edycji, usunięcie można zainicjować z `RecipeCard` na `(/)` lub z widoku szczegółów `(/recipes/[id])`. Akcja otwiera `Delete Confirmation Modal`. Po potwierdzeniu, przepis znika z listy (optimistic UI), a w tle wysyłane jest żądanie do API. W razie błędu, element wraca na listę, a użytkownik otrzymuje powiadomienie "toast" o niepowodzeniu.
 
 ## 4. Układ i struktura nawigacji
 
@@ -116,6 +134,8 @@ Poniżej znajduje się lista kluczowych, reużywalnych komponentów React, któr
 
 - **`RecipeCard`:**
   - **Opis:** Karta wyświetlająca podsumowanie pojedynczego przepisu na liście. Zawiera nazwę, kategorię, poziom trudności oraz przyciski akcji.
+- **`RecipeDetails`:**
+  - **Opis:** Komponent wyświetlający szczegółowe informacje o przepisie, takie jak lista składników, instrukcje i inne. Zawiera również przyciski akcji ("Edytuj", "Usuń").
 - **`RecipeForm`:**
   - **Opis:** Kompleksowy formularz do tworzenia i edycji przepisów, zawierający walidację i logikę komunikacji z API.
 - **`IngredientsEditor`:**

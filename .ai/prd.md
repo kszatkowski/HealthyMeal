@@ -95,14 +95,26 @@ Poniższe funkcjonalności nie wchodzą w zakres wersji MVP i mogą być rozważ
   3. Zapisane zmiany nadpisują poprzednią wersję przepisu.
 
 - ID: US-008
-- Tytuł: Przeglądanie i usuwanie przepisów
-- Opis: Jako użytkownik, chcę móc przeglądać listę moich zapisanych przepisów, pogrupowanych według kategorii, oraz usuwać te, których już nie potrzebuję.
+- Tytuł: Przeglądanie listy przepisów
+- Opis: Jako użytkownik, chcę móc przeglądać listę moich zapisanych przepisów, pogrupowanych według kategorii, aby łatwo odnaleźć poszukiwaną potrawę i zarządzać nią.
 - Kryteria akceptacji:
-  1. Główny widok po zalogowaniu przedstawia listę przepisów użytkownika, pogrupowaną według "rodzaju posiłku".
-  2. Kliknięcie na przepis przenosi do widoku jego szczegółów.
-  3. W widoku szczegółów oraz na liście dostępna jest opcja "Usuń".
-  4. Usunięcie przepisu wymaga potwierdzenia przez użytkownika. Po potwierdzeniu przepis jest trwale usuwany z konta.
+  1. Główny widok po zalogowaniu (`/`) przedstawia listę przepisów użytkownika w formie siatki kart.
+  2. Użytkownik może filtrować przepisy według "rodzaju posiłku".
+  3. Kliknięcie na kartę przepisu (poza przyciskami akcji) przenosi do widoku szczegółów (zgodnie z US-009).
+  4. Każda karta przepisu zawiera przyciski akcji "Edytuj" i "Usuń".
+
 - ID: US-009
+- Tytuł: Przeglądanie szczegółów przepisu
+- Opis: Jako użytkownik, chcę mieć dostęp do szczegółowego widoku przepisu, aby zobaczyć wszystkie jego składniki, instrukcje przygotowania oraz mieć możliwość zarządzania nim.
+- Kryteria akceptacji:
+  1. Widok szczegółów przepisu (`/recipes/[id]`) jest dostępny po kliknięciu w kartę przepisu na liście.
+  2. Widok wyświetla pełne informacje: nazwę, rodzaj posiłku, poziom trudności, listę składników z ilościami oraz instrukcje krok po kroku.
+  3. W widoku dostępne są przyciski akcji "Edytuj" i "Usuń".
+  4. Przycisk "Edytuj" przekierowuje na stronę edycji przepisu (`/recipes/[id]/edit`).
+  5. Przycisk "Usuń" inicjuje modal z prośbą o potwierdzenie usunięcia przepisu.
+  6. Widok jest dostępny tylko dla właściciela przepisu.
+
+- ID: US-010
 - Tytuł: Nawigacja w aplikacji i zarządzanie sesją
 - Opis: Jako zalogowany użytkownik, chcę mieć dostęp do paska nawigacyjnego z przyciskami do zarządzania preferencjami i wylogowania, aby łatwo poruszać się po aplikacji i zarządzać swoją sesją.
 - Kryteria akceptacji:
