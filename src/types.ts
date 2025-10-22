@@ -6,7 +6,6 @@ type ProductRow = Tables<"products">;
 type UserPreferenceRow = Tables<"user_preferences">;
 type UserPreferenceInsert = TablesInsert<"user_preferences">;
 type RecipeRow = Tables<"recipes">;
-type RecipeIngredientRow = Tables<"recipe_ingredients">;
 
 // -----------------------------------------------------------------------------
 // Profile
@@ -73,6 +72,10 @@ export interface PreferenceDeleteCommand {
 // Recipes
 // -----------------------------------------------------------------------------
 
+/**
+ * RecipeListItemDto represents a recipe in a list view without detailed ingredients.
+ * Ingredients are included as a text field in the response.
+ */
 export interface RecipeListItemDto {
   id: RecipeRow["id"];
   name: RecipeRow["name"];
@@ -83,13 +86,9 @@ export interface RecipeListItemDto {
   updatedAt: RecipeRow["updated_at"];
 }
 
-export interface RecipeIngredientDto {
-  id: RecipeIngredientRow["id"];
-  amount: RecipeIngredientRow["amount"];
-  unit: RecipeIngredientRow["unit"];
-  product: ProductListItemDto;
-}
-
+/**
+ * RecipeListResponseDto represents a paginated list of recipes.
+ */
 export interface RecipeListResponseDto {
   items: RecipeListItemDto[];
   total: number;
@@ -97,24 +96,22 @@ export interface RecipeListResponseDto {
   offset: number;
 }
 
-interface RecipeCommandIngredient {
-  productId: RecipeIngredientRow["product_id"];
-  amount: RecipeIngredientRow["amount"];
-  unit: RecipeIngredientRow["unit"];
-}
-
 export interface RecipeCreateCommand {
   name: RecipeRow["name"];
   mealType: RecipeRow["meal_type"];
   difficulty: RecipeRow["difficulty"];
   instructions: RecipeRow["instructions"];
+  ingredients: string;
   /** Optional because manual recipes default to false in the database. */
   isAiGenerated?: RecipeRow["is_ai_generated"];
-  ingredients: RecipeCommandIngredient[];
 }
 
 export type RecipeUpdateCommand = RecipeCreateCommand;
 
+/**
+ * RecipeResponseDto represents a single recipe with all its details.
+ * Ingredients are returned as a text field.
+ */
 export interface RecipeResponseDto {
   id: RecipeRow["id"];
   userId: RecipeRow["user_id"];
@@ -122,19 +119,19 @@ export interface RecipeResponseDto {
   mealType: RecipeRow["meal_type"];
   difficulty: RecipeRow["difficulty"];
   instructions: RecipeRow["instructions"];
+  ingredients: RecipeRow["ingredients"];
   isAiGenerated: RecipeRow["is_ai_generated"];
   createdAt: RecipeRow["created_at"];
   updatedAt: RecipeRow["updated_at"];
-  ingredients: RecipeIngredientDto[];
 }
 
 export interface RecipeDeleteCommand {
   recipeId: RecipeRow["id"];
 }
 
-// -----------------------------------------------------------------------------
+// ============================================================================
 // AI Recipe Generation
-// -----------------------------------------------------------------------------
+// ============================================================================
 
 export interface AiRecipeGenerationCommand {
   mealType: RecipeRow["meal_type"];
@@ -142,10 +139,13 @@ export interface AiRecipeGenerationCommand {
   mainIngredient: string;
 }
 
+/**
+ * Ingredient data within an AI recipe draft.
+ */
 export interface AiRecipeDraftIngredientDto {
   name: string;
-  amount: RecipeIngredientRow["amount"];
-  unit: RecipeIngredientRow["unit"];
+  amount: number;
+  unit: string;
 }
 
 export interface AiRecipeDraftDto {
@@ -161,6 +161,9 @@ export interface AiRecipeGenerationResponseDto {
   aiRequestsRemaining: ProfileRow["ai_requests_count"];
 }
 
+/**
+ * When saving an AI recipe, ingredients are serialized to the text field.
+ */
 export type AiRecipeSaveCommand = Omit<RecipeCreateCommand, "isAiGenerated"> & {
   /** Enforce the invariant that saved AI recipes persist the AI flag. */
   isAiGenerated: true;

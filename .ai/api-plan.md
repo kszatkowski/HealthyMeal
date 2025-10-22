@@ -193,13 +193,7 @@
   "mealType": "lunch",
   "difficulty": "easy",
   "instructions": "Mix ingredients and serve.",
-  "ingredients": [
-    {
-      "productId": "f4108d45-8d68-4a11-92d0-0c3c6e05ca1e",
-      "amount": 200,
-      "unit": "gram"
-    }
-  ],
+  "ingredients": "Chickpeas - 200g\nRed Onion - 50g\nLemon Juice - 2tbsp\nOlive Oil - 3tbsp\nSalt and Pepper to taste",
   "isAiGenerated": false
 }
 ```
@@ -207,10 +201,9 @@
 - Success Codes:
   - `201 Created` – recipe saved.
 - Error Codes:
-  - `400 Bad Request` – `invalid_payload`, `invalid_ingredient_unit`.
+  - `400 Bad Request` – `invalid_payload`.
   - `401 Unauthorized` – `missing_token`, `invalid_token`.
-  - `404 Not Found` – `product_not_found`.
-  - `422 Unprocessable Entity` – `ingredient_limit_exceeded`, `instructions_too_long`.
+  - `422 Unprocessable Entity` – `ingredients_too_long`.
 
 **GET** `/api/recipes/{recipeId}`
 - Description: Retrieve a single recipe with ingredients.
@@ -224,20 +217,10 @@
   "mealType": "breakfast",
   "difficulty": "easy",
   "instructions": "Combine oats, almond milk, and almonds.",
+  "ingredients": "Oats - 1 cup\nAlmond Milk - 1 cup\nAlmonds - 50g\nHoney - 1tbsp",
   "isAiGenerated": true,
   "createdAt": "2025-10-10T10:00:00Z",
-  "updatedAt": "2025-10-10T10:05:00Z",
-  "ingredients": [
-    {
-      "id": "1d2c7c45-43ce-4d76-90b5-cf74fd7024d6",
-      "product": {
-        "id": "6d9011b0-0719-4d7a-8be3-262b8b2ab885",
-        "name": "Almond"
-      },
-      "amount": 50,
-      "unit": "gram"
-    }
-  ]
+  "updatedAt": "2025-10-10T10:05:00Z"
 }
 ```
 - Success Codes:
@@ -247,20 +230,20 @@
   - `404 Not Found` – `recipe_not_found`.
 
 **PUT** `/api/recipes/{recipeId}`
-- Description: Replace recipe properties and ingredient list.
+- Description: Replace recipe properties and ingredient text.
 - Headers: `Authorization: Bearer <accessToken>`
 - Request JSON: Same schema as POST.
 - Response 200 JSON: Updated recipe payload.
 - Success Codes:
   - `200 OK` – recipe updated.
 - Error Codes:
-  - `400 Bad Request` – `invalid_payload`, `invalid_ingredient_unit`.
+  - `400 Bad Request` – `invalid_payload`.
   - `401 Unauthorized` – `missing_token`, `invalid_token`.
   - `404 Not Found` – `recipe_not_found`.
-  - `422 Unprocessable Entity` – `ingredient_limit_exceeded`.
+  - `422 Unprocessable Entity` – `ingredients_too_long`.
 
 **DELETE** `/api/recipes/{recipeId}`
-- Description: Permanently delete a recipe with cascading ingredients.
+- Description: Permanently delete a recipe.
 - Headers: `Authorization: Bearer <accessToken>`
 - Response: `204 No Content`.
 - Error Codes:
@@ -369,16 +352,17 @@
 
 - Recipes
   - `name` ≤ 50 chars; `instructions` ≤ 5000 chars (VARCHAR constraints).
-  - `mealType`, `difficulty`, `unit` constrained by enums; validate early.
-  - Ingredients require positive `amount` and at least one entry; limit to 50 to maintain payload size.
-  - Updates replace ingredient set within a transaction to maintain integrity.
+  - `ingredients` ≤ 1000 chars stored as plain text (VARCHAR constraint).
+  - `mealType` and `difficulty` constrained by enums; validate early.
   - `isAiGenerated` defaults false but must be persisted when saving AI output.
+  - Ingredients are expected to be formatted as human-readable text (e.g., "Ingredient - Amount Unit\nIngredient 2 - Amount Unit").
 
 - AI Recipe Generation
   - Check `profiles.ai_requests_count > 0` before invoking model; decrement atomically using RPC or transaction.
   - Enforce alignment with preferences: exclude allergens/dislikes, prioritize likes when constructing prompt/result.
   - Log user ID, request payload, and response metadata for audit.
   - When AI output includes forbidden ingredients, respond with `422 preference_conflict_detected` without decrementing quota.
+  - AI-generated ingredients should be serialized to the text field in the standard format.
 
 - Onboarding Notice
   - `show` when both likes and dislikes lists are empty and `hiddenUntil` is null or expired.

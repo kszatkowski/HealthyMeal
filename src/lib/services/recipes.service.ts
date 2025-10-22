@@ -1,34 +1,14 @@
 import type { SupabaseServerClient } from "../../db/supabase.client.ts";
 import type { Database } from "../../db/database.types.ts";
-import type {
-  ProductListItemDto,
-  RecipeCreateCommand,
-  RecipeIngredientDto,
-  RecipeListItemDto,
-  RecipeListResponseDto,
-  RecipeResponseDto,
-} from "../../types.ts";
+import type { RecipeCreateCommand, RecipeListItemDto, RecipeListResponseDto, RecipeResponseDto } from "../../types.ts";
 
-const MAX_INGREDIENTS = 50;
 const MAX_INSTRUCTIONS_LENGTH = 5000;
-
-const ALLOWED_UNITS: Database["public"]["Enums"]["recipe_unit"][] = [
-  "gram",
-  "kilogram",
-  "milliliter",
-  "liter",
-  "teaspoon",
-  "tablespoon",
-  "cup",
-  "piece",
-];
+const MAX_INGREDIENTS_LENGTH = 1000;
 
 type RecipeServiceErrorCode =
-  | "ingredient_limit_exceeded"
-  | "duplicate_ingredient"
+  | "ingredients_too_long"
   | "product_not_found"
   | "instructions_too_long"
-  | "invalid_ingredient_unit"
   | "invalid_query_params"
   | "recipe_not_found"
   | "internal_error";
@@ -75,24 +55,14 @@ export async function createRecipe(
   userId: string,
   command: RecipeCreateCommand
 ): Promise<RecipeResponseDto> {
-  validateIngredientCount(command.ingredients);
   validateInstructionLength(command.instructions);
-  validateUnits(command.ingredients);
-  ensureUniqueIngredients(command.ingredients);
-
-  const productMap = await fetchProductsMap(
-    supabase,
-    command.ingredients.map((item) => item.productId)
-  );
-
-  if (productMap.size !== command.ingredients.length) {
-    throw new RecipeServiceError("product_not_found", "One or more referenced products do not exist.");
-  }
+  validateIngredientsLength(command.ingredients);
 
   const recipeInsertPayload = {
     user_id: userId,
     name: command.name,
     instructions: command.instructions,
+    ingredients: command.ingredients,
     meal_type: command.mealType,
     difficulty: command.difficulty,
     is_ai_generated: command.isAiGenerated ?? false,
@@ -101,7 +71,9 @@ export async function createRecipe(
   const { data: recipeRow, error: recipeError } = await supabase
     .from("recipes")
     .insert(recipeInsertPayload)
-    .select("id, user_id, name, meal_type, difficulty, instructions, is_ai_generated, created_at, updated_at")
+    .select(
+      "id, user_id, name, meal_type, difficulty, instructions, ingredients, is_ai_generated, created_at, updated_at"
+    )
     .single();
 
   if (recipeError) {
@@ -112,43 +84,6 @@ export async function createRecipe(
     throw new RecipeServiceError("internal_error", "Recipe creation returned no data.");
   }
 
-  const ingredientInsertPayload = command.ingredients.map((ingredient) => ({
-    recipe_id: recipeRow.id,
-    product_id: ingredient.productId,
-    amount: ingredient.amount,
-    unit: ingredient.unit,
-  })) satisfies Database["public"]["Tables"]["recipe_ingredients"]["Insert"][];
-
-  const { data: ingredientRows, error: ingredientError } = await supabase
-    .from("recipe_ingredients")
-    .insert(ingredientInsertPayload)
-    .select("id, product_id, amount, unit");
-
-  if (ingredientError) {
-    await cleanupRecipeOnFailure(supabase, recipeRow.id);
-    throw mapInsertIngredientsError(ingredientError);
-  }
-
-  if (!ingredientRows) {
-    await cleanupRecipeOnFailure(supabase, recipeRow.id);
-    throw new RecipeServiceError("internal_error", "Ingredient creation returned no data.");
-  }
-
-  const ingredients = ingredientRows.map<RecipeIngredientDto>((ingredient) => {
-    const product = productMap.get(ingredient.product_id);
-
-    if (!product) {
-      throw new RecipeServiceError("internal_error", "Failed to correlate product snapshot for ingredient.");
-    }
-
-    return {
-      id: ingredient.id,
-      amount: ingredient.amount,
-      unit: ingredient.unit,
-      product,
-    };
-  });
-
   return {
     id: recipeRow.id,
     userId: recipeRow.user_id,
@@ -156,10 +91,10 @@ export async function createRecipe(
     mealType: recipeRow.meal_type,
     difficulty: recipeRow.difficulty,
     instructions: recipeRow.instructions,
+    ingredients: recipeRow.ingredients,
     isAiGenerated: recipeRow.is_ai_generated,
     createdAt: recipeRow.created_at,
     updatedAt: recipeRow.updated_at,
-    ingredients,
   };
 }
 
@@ -170,20 +105,8 @@ export async function updateRecipe(
   command: RecipeCreateCommand
 ): Promise<RecipeResponseDto> {
   // Validate input parameters
-  validateIngredientCount(command.ingredients);
   validateInstructionLength(command.instructions);
-  validateUnits(command.ingredients);
-  ensureUniqueIngredients(command.ingredients);
-
-  // Fetch and verify product existence
-  const productMap = await fetchProductsMap(
-    supabase,
-    command.ingredients.map((item) => item.productId)
-  );
-
-  if (productMap.size !== command.ingredients.length) {
-    throw new RecipeServiceError("product_not_found", "One or more referenced products do not exist.");
-  }
+  validateIngredientsLength(command.ingredients);
 
   // Verify that the recipe exists and belongs to the user
   const { data: existingRecipe, error: fetchError } = await supabase
@@ -201,6 +124,7 @@ export async function updateRecipe(
   const recipeUpdatePayload = {
     name: command.name,
     instructions: command.instructions,
+    ingredients: command.ingredients,
     meal_type: command.mealType,
     difficulty: command.difficulty,
     is_ai_generated: command.isAiGenerated ?? false,
@@ -216,63 +140,18 @@ export async function updateRecipe(
     throw mapUpdateRecipeError(updateRecipeError);
   }
 
-  // Delete existing ingredients for the recipe
-  const { error: deleteIngredientsError } = await supabase
-    .from("recipe_ingredients")
-    .delete()
-    .eq("recipe_id", recipeId);
-
-  if (deleteIngredientsError) {
-    throw new RecipeServiceError("internal_error", "Failed to delete existing ingredients.", deleteIngredientsError);
-  }
-
-  // Insert new ingredients
-  const ingredientInsertPayload = command.ingredients.map((ingredient) => ({
-    recipe_id: recipeId,
-    product_id: ingredient.productId,
-    amount: ingredient.amount,
-    unit: ingredient.unit,
-  })) satisfies Database["public"]["Tables"]["recipe_ingredients"]["Insert"][];
-
-  const { data: ingredientRows, error: ingredientError } = await supabase
-    .from("recipe_ingredients")
-    .insert(ingredientInsertPayload)
-    .select("id, product_id, amount, unit");
-
-  if (ingredientError) {
-    throw mapInsertIngredientsError(ingredientError);
-  }
-
-  if (!ingredientRows) {
-    throw new RecipeServiceError("internal_error", "Ingredient creation returned no data.");
-  }
-
   // Fetch the updated recipe to return the complete response
   const { data: updatedRecipeRow, error: fetchUpdatedError } = await supabase
     .from("recipes")
-    .select("id, user_id, name, meal_type, difficulty, instructions, is_ai_generated, created_at, updated_at")
+    .select(
+      "id, user_id, name, meal_type, difficulty, instructions, ingredients, is_ai_generated, created_at, updated_at"
+    )
     .eq("id", recipeId)
     .single();
 
   if (fetchUpdatedError || !updatedRecipeRow) {
     throw new RecipeServiceError("internal_error", "Failed to fetch updated recipe.", fetchUpdatedError);
   }
-
-  // Map ingredients to DTOs
-  const ingredients = ingredientRows.map<RecipeIngredientDto>((ingredient) => {
-    const product = productMap.get(ingredient.product_id);
-
-    if (!product) {
-      throw new RecipeServiceError("internal_error", "Failed to correlate product snapshot for ingredient.");
-    }
-
-    return {
-      id: ingredient.id,
-      amount: ingredient.amount,
-      unit: ingredient.unit,
-      product,
-    };
-  });
 
   return {
     id: updatedRecipeRow.id,
@@ -281,10 +160,10 @@ export async function updateRecipe(
     mealType: updatedRecipeRow.meal_type,
     difficulty: updatedRecipeRow.difficulty,
     instructions: updatedRecipeRow.instructions,
+    ingredients: updatedRecipeRow.ingredients,
     isAiGenerated: updatedRecipeRow.is_ai_generated,
     createdAt: updatedRecipeRow.created_at,
     updatedAt: updatedRecipeRow.updated_at,
-    ingredients,
   };
 }
 
@@ -293,28 +172,11 @@ export async function getRecipe(
   userId: string,
   recipeId: string
 ): Promise<RecipeResponseDto> {
-  // Fetch recipe with its ingredients and product details
+  // Fetch recipe
   const { data: recipeRow, error: recipeError } = await supabase
     .from("recipes")
     .select(
-      `
-      id,
-      user_id,
-      name,
-      meal_type,
-      difficulty,
-      instructions,
-      is_ai_generated,
-      created_at,
-      updated_at,
-      recipe_ingredients(
-        id,
-        product_id,
-        amount,
-        unit,
-        products(id, name)
-      )
-      `
+      "id, user_id, name, meal_type, difficulty, instructions, ingredients, is_ai_generated, created_at, updated_at"
     )
     .eq("id", recipeId)
     .eq("user_id", userId)
@@ -324,31 +186,6 @@ export async function getRecipe(
     throw new RecipeServiceError("recipe_not_found", "Recipe not found or you don't have permission to access it.");
   }
 
-  // Map recipe ingredients to DTOs
-  const ingredients = (
-    recipeRow.recipe_ingredients as {
-      id: string;
-      product_id: string;
-      amount: number;
-      unit: Database["public"]["Enums"]["recipe_unit"];
-      products: { id: string; name: string } | null;
-    }[]
-  ).map<RecipeIngredientDto>((ingredient) => {
-    if (!ingredient.products) {
-      throw new RecipeServiceError("internal_error", "Failed to load product data for ingredient.");
-    }
-
-    return {
-      id: ingredient.id,
-      amount: ingredient.amount,
-      unit: ingredient.unit,
-      product: {
-        id: ingredient.products.id,
-        name: ingredient.products.name,
-      },
-    };
-  });
-
   return {
     id: recipeRow.id,
     userId: recipeRow.user_id,
@@ -356,10 +193,10 @@ export async function getRecipe(
     mealType: recipeRow.meal_type,
     difficulty: recipeRow.difficulty,
     instructions: recipeRow.instructions,
+    ingredients: recipeRow.ingredients,
     isAiGenerated: recipeRow.is_ai_generated,
     createdAt: recipeRow.created_at,
     updatedAt: recipeRow.updated_at,
-    ingredients,
   };
 }
 
@@ -418,62 +255,16 @@ export async function listRecipes(
   } satisfies RecipeListResponseDto;
 }
 
-function validateIngredientCount(ingredients: RecipeCreateCommand["ingredients"]): void {
-  if (ingredients.length > MAX_INGREDIENTS) {
-    throw new RecipeServiceError("ingredient_limit_exceeded");
-  }
-}
-
 function validateInstructionLength(instructions: string): void {
   if (instructions.length > MAX_INSTRUCTIONS_LENGTH) {
     throw new RecipeServiceError("instructions_too_long");
   }
 }
 
-function validateUnits(ingredients: RecipeCreateCommand["ingredients"]): void {
-  const invalid = ingredients.find((ingredient) => !ALLOWED_UNITS.includes(ingredient.unit));
-
-  if (invalid) {
-    throw new RecipeServiceError("invalid_ingredient_unit");
+function validateIngredientsLength(ingredients: string): void {
+  if (ingredients.length > MAX_INGREDIENTS_LENGTH) {
+    throw new RecipeServiceError("ingredients_too_long");
   }
-}
-
-function ensureUniqueIngredients(ingredients: RecipeCreateCommand["ingredients"]): void {
-  const identifiers = new Set<string>();
-
-  for (const ingredient of ingredients) {
-    if (identifiers.has(ingredient.productId)) {
-      throw new RecipeServiceError("duplicate_ingredient");
-    }
-
-    identifiers.add(ingredient.productId);
-  }
-}
-
-async function fetchProductsMap(
-  supabase: SupabaseServerClient,
-  productIds: string[]
-): Promise<Map<string, ProductListItemDto>> {
-  if (productIds.length === 0) {
-    return new Map();
-  }
-
-  const { data, error } = await supabase.from("products").select("id, name").in("id", productIds);
-
-  if (error) {
-    throw new RecipeServiceError("internal_error", "Failed to fetch products.", error);
-  }
-
-  const map = new Map<string, ProductListItemDto>();
-  data?.forEach((product) => {
-    map.set(product.id, { id: product.id, name: product.name });
-  });
-
-  return map;
-}
-
-async function cleanupRecipeOnFailure(supabase: SupabaseServerClient, recipeId: string): Promise<void> {
-  await supabase.from("recipes").delete().eq("id", recipeId);
 }
 
 export async function deleteRecipe(supabase: SupabaseServerClient, userId: string, recipeId: string): Promise<void> {
@@ -490,14 +281,6 @@ function mapInsertRecipeError(error: { code?: string; message: string }): Recipe
   }
 
   return new RecipeServiceError("internal_error", "Failed to create recipe.", error);
-}
-
-function mapInsertIngredientsError(error: { code?: string; message: string }): RecipeServiceError {
-  if (error.code === "23514") {
-    return new RecipeServiceError("invalid_ingredient_unit");
-  }
-
-  return new RecipeServiceError("internal_error", "Failed to store recipe ingredients.", error);
 }
 
 function mapUpdateRecipeError(error: { code?: string; message: string }): RecipeServiceError {

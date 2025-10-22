@@ -2,35 +2,17 @@ import { z } from "zod";
 
 import {
   DIFFICULTIES,
-  MAX_INGREDIENTS,
   MEAL_TYPES,
   RECIPE_INSTRUCTIONS_MAX_LENGTH,
   RECIPE_NAME_MAX_LENGTH,
-  UNITS,
 } from "../../components/views/RecipeFormView/constants";
 
-/**
- * Ingredient schema for recipe commands (create/update).
- * Validates product ID (UUID), amount (positive number), and unit.
- * Uses shared constants from RecipeFormView for consistency.
- */
-const recipeCommandIngredientSchema = z
-  .object({
-    productId: z.string().uuid("ID produktu musi być prawidłowym UUID"),
-    amount: z.number({ invalid_type_error: "Ilość musi być liczbą" }).positive("Ilość musi być większa od zera"),
-    unit: z.enum(UNITS, {
-      errorMap: () => ({
-        message: `Jednostka musi być jedną z: ${UNITS.join(", ")}`,
-      }),
-    }),
-  })
-  .strict();
+const RECIPE_INGREDIENTS_MAX_LENGTH = 1000;
 
 /**
  * Recipe update command schema.
- * Validates all fields required to update a recipe including ingredients.
- * Matches the RecipeUpdateCommand type from types.ts.
- * Uses shared constants from RecipeFormView to avoid duplication with frontend validation.
+ * Validates all fields required to update a recipe.
+ * Ingredients are now stored as a single text field instead of individual records.
  */
 export const recipeUpdateCommandSchema = z
   .object({
@@ -48,13 +30,11 @@ export const recipeUpdateCommandSchema = z
       .string({ invalid_type_error: "Instrukcje muszą być tekstem" })
       .min(1, "Instrukcje są wymagane")
       .max(RECIPE_INSTRUCTIONS_MAX_LENGTH, `Instrukcje nie mogą przekraczać ${RECIPE_INSTRUCTIONS_MAX_LENGTH} znaków`),
-    isAiGenerated: z.boolean().optional(),
     ingredients: z
-      .array(recipeCommandIngredientSchema, {
-        invalid_type_error: "Składniki muszą być tablicą",
-      })
+      .string({ invalid_type_error: "Składniki muszą być tekstem" })
       .min(1, "Dodaj co najmniej jeden składnik")
-      .max(MAX_INGREDIENTS, `Liczba składników nie może przekraczać ${MAX_INGREDIENTS}`),
+      .max(RECIPE_INGREDIENTS_MAX_LENGTH, `Składniki nie mogą przekraczać ${RECIPE_INGREDIENTS_MAX_LENGTH} znaków`),
+    isAiGenerated: z.boolean().optional(),
   })
   .strict();
 

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import type { SubmitHandler } from "react-hook-form";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
@@ -11,11 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Toaster } from "@/components/ui/sonner";
 import type { RecipeCreateCommand, RecipeResponseDto } from "@/types";
 
-import { IngredientsEditor } from "./IngredientsEditor";
 import { defaultRecipeFormValues, recipeFormSchema } from "./schema";
 import type { RecipeFormViewModel } from "./schema";
-
-type IngredientErrors = NonNullable<Parameters<typeof IngredientsEditor>[0]["errors"]>;
 
 interface RecipeFormProps {
   recipeId?: string;
@@ -28,11 +25,7 @@ function toCreateCommand(data: RecipeFormViewModel): RecipeCreateCommand {
     mealType: data.mealType,
     difficulty: data.difficulty,
     instructions: data.instructions.trim(),
-    ingredients: data.ingredients.map((ingredient: RecipeFormViewModel["ingredients"][number]) => ({
-      productId: ingredient.productId,
-      amount: ingredient.amount,
-      unit: ingredient.unit,
-    })),
+    ingredients: data.ingredients.trim(),
   };
 }
 
@@ -55,12 +48,7 @@ export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
       mealType: initialData.mealType,
       difficulty: initialData.difficulty,
       instructions: initialData.instructions,
-      ingredients: initialData.ingredients.map((ingredient) => ({
-        productId: ingredient.product.id,
-        productName: ingredient.product.name,
-        amount: ingredient.amount,
-        unit: ingredient.unit,
-      })),
+      ingredients: initialData.ingredients,
     };
   }, [isEditMode, initialData]);
 
@@ -71,8 +59,6 @@ export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
   });
 
   const { control, handleSubmit, formState, reset } = form;
-
-  const ingredientArray = useFieldArray({ name: "ingredients", control });
 
   const ensureToasterMounted = useCallback(() => {
     if (!hasMountedToaster) {
@@ -259,16 +245,25 @@ export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
                 </FormItem>
               )}
             />
-          </section>
 
-          <IngredientsEditor
-            fieldArray={ingredientArray}
-            control={control}
-            errors={formState.errors.ingredients as IngredientErrors}
-            setValue={form.setValue}
-            values={form.watch("ingredients")}
-            isSubmitting={disableSubmit}
-          />
+            <FormField
+              control={control}
+              name="ingredients"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Składniki</FormLabel>
+                  <FormControl>
+                    <textarea
+                      className="h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed text-foreground shadow-sm outline-none transition-all focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+                      placeholder="Wymień składniki, np.:&#10;Mąka owsiana - 1 szklanka&#10;Mleko migdałowe - 1 szklanka&#10;Miód - 1 łyżka stołowa"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </section>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <Button

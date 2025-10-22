@@ -10,7 +10,6 @@ Custom ENUM types to ensure data consistency across the application.
 CREATE TYPE preference_type AS ENUM ('like', 'dislike', 'allergen');
 CREATE TYPE meal_type AS ENUM ('breakfast', 'lunch', 'dinner', 'dessert', 'snack');
 CREATE TYPE recipe_difficulty AS ENUM ('easy', 'medium', 'hard');
-CREATE TYPE recipe_unit AS ENUM ('gram', 'kilogram', 'milliliter', 'liter', 'teaspoon', 'tablespoon', 'cup', 'piece');
 ```
 
 ## 2. Tables
@@ -47,7 +46,7 @@ Stores user-specific application data, extending the `users` table.
 
 ### `products`
 
-A dictionary table containing all available food products/ingredients.
+A dictionary table containing all available food products.
 
 - **Primary Key**: `id`.
 
@@ -86,27 +85,12 @@ Stores all recipes, both user-created and AI-generated.
 | `user_id`         | `uuid`              | `NOT NULL`, `REFERENCES users(id) ON DELETE CASCADE`                              | Foreign key to the user who owns the recipe.           |
 | `name`            | `varchar(50)`              | `NOT NULL`                                                                           | Name of the recipe.                                    |
 | `instructions`    | `varchar(5000)`              | `NOT NULL`                                                                           | Step-by-step preparation instructions.                 |
+| `ingredients`    | `varchar(1000)`              | `NOT NULL`                                                                           | Ingredients for the meal.                 |
 | `meal_type`       | `meal_type`         | `NOT NULL`                                                                           | Category of the meal (e.g., 'breakfast', 'dinner').    |
 | `difficulty`      | `recipe_difficulty` | `NOT NULL`                                                                           | Difficulty level ('easy', 'medium', 'hard').           |
 | `is_ai_generated` | `boolean`           | `NOT NULL`, `DEFAULT false`                                                          | Flag to distinguish AI-generated recipes.              |
 | `created_at`      | `timestamptz`       | `NOT NULL`, `DEFAULT now()`                                                          | Timestamp of recipe creation.                          |
 | `updated_at`      | `timestamptz`       | `NOT NULL`, `DEFAULT now()`                                                          | Timestamp of the last recipe update.                   |
-
-### `recipe_ingredients`
-
-A join table linking recipes to their required ingredients from the `products` table.
-
-- **Relationship**: Many-to-Many between `recipes` and `products`.
-- **Primary Key**: `id`.
-
-| Column      | Type          | Constraints                                                                       | Description                                     |
-| ----------- | ------------- | --------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `id`        | `uuid`        | `PRIMARY KEY`, `DEFAULT gen_random_uuid()`                                      | Unique identifier for the ingredient entry.     |
-| `recipe_id` | `uuid`        | `NOT NULL`, `REFERENCES recipes(id) ON DELETE CASCADE`                            | Foreign key to the `recipes` table.             |
-| `product_id`| `uuid`        | `NOT NULL`, `REFERENCES products(id) ON DELETE CASCADE`                           | Foreign key to the `products` table.            |
-| `amount`    | `numeric`     | `NOT NULL`                                                                        | Quantity of the ingredient required.            |
-| `unit`      | `recipe_unit` | `NOT NULL`                                                                        | Unit of measurement for the amount.             |
-| `created_at`| `timestamptz` | `NOT NULL`, `DEFAULT now()`                                                       | Timestamp of ingredient entry creation.         |
 
 ## 3. Indexes
 
@@ -127,7 +111,6 @@ RLS policies to ensure users can only access their own data. RLS must be enabled
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE recipe_ingredients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY; -- All users can read all products
 
 -- Policies for `profiles`
@@ -139,13 +122,6 @@ CREATE POLICY "Users can manage their own preferences" ON user_preferences FOR A
 
 -- Policies for `recipes`
 CREATE POLICY "Users can manage their own recipes" ON recipes FOR ALL USING (auth.uid() = user_id);
-
--- Policies for `recipe_ingredients`
-CREATE POLICY "Users can manage ingredients for their own recipes" ON recipe_ingredients FOR ALL USING (
-  EXISTS (
-    SELECT 1 FROM recipes WHERE recipes.id = recipe_id AND recipes.user_id = auth.uid()
-  )
-);
 
 -- Policies for `products`
 CREATE POLICY "All authenticated users can read products" ON products FOR SELECT TO authenticated USING (true);

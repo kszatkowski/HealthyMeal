@@ -59,11 +59,11 @@ Architektura jest zorientowana na realizację kluczowych przepływów użytkowni
 - **Główny cel:** Tworzenie nowego przepisu lub modyfikacja istniejącego.
 - **Kluczowe informacje do wyświetlenia:** Pełny formularz edycji przepisu.
 - **Kluczowe komponenty widoku:**
-  - `RecipeForm`: Główny komponent React zawierający wszystkie pola: `Input` (nazwa), `Select` (rodzaj posiłku, poziom trudności), `Textarea` (instrukcje).
-  - `IngredientsEditor`: Dynamiczny komponent do zarządzania listą składników (dodawanie, usuwanie, edycja ilości i jednostek).
+  - `RecipeForm`: Główny komponent React zawierający wszystkie pola: `Input` (nazwa), `Select` (rodzaj posiłku, poziom trudności), `Textarea` (instrukcje), `Textarea` (składniki).
+  - Pole `ingredients` to zwykły textarea, gdzie użytkownik wpisuje składniki w formacie tekstowym (np. "Oats - 1 cup\nAlmond Milk - 1 cup").
 - **UX, dostępność i względy bezpieczeństwa:**
-  - **UX:** Po zapisaniu następuje przekierowanie z powrotem do listy z komunikatem "toast" o sukcesie. Walidacja `inline`.
-  - **Dostępność:** Wszystkie pola formularza muszą mieć etykiety. Dynamiczny edytor składników musi być obsługiwany z klawiatury.
+  - **UX:** Po zapisaniu następuje przekierowanie z powrotem do listy z komunikatem "toast" o sukcesie. Walidacja `inline`. Pole składników zawiera placeholder z przykładową zawartością pokazującą oczekiwany format.
+  - **Dostępność:** Wszystkie pola formularza muszą mieć etykiety. Pole textarea musi być w pełni dostępne z klawiatury.
   - **Bezpieczeństwo:** Walidacja danych wejściowych po stronie serwera. Sprawdzenie uprawnień użytkownika do edycji danego przepisu.
 
 ### Widok 5: Preferencje (Preferences View)
@@ -135,11 +135,9 @@ Poniżej znajduje się lista kluczowych, reużywalnych komponentów React, któr
 - **`RecipeCard`:**
   - **Opis:** Karta wyświetlająca podsumowanie pojedynczego przepisu na liście. Zawiera nazwę, kategorię, poziom trudności oraz przyciski akcji.
 - **`RecipeDetails`:**
-  - **Opis:** Komponent wyświetlający szczegółowe informacje o przepisie, takie jak lista składników, instrukcje i inne. Zawiera również przyciski akcji ("Edytuj", "Usuń").
+  - **Opis:** Komponent wyświetlający szczegółowe informacje o przepisie, takie jak tekst składników i instrukcje. Zawiera również przyciski akcji ("Edytuj", "Usuń").
 - **`RecipeForm`:**
-  - **Opis:** Kompleksowy formularz do tworzenia i edycji przepisów, zawierający walidację i logikę komunikacji z API.
-- **`IngredientsEditor`:**
-  - **Opis:** Interaktywny komponent wewnątrz `RecipeForm` do dynamicznego zarządzania listą składników. Wykorzystuje `Combobox` do wyszukiwania produktów.
+  - **Opis:** Kompleksowy formularz do tworzenia i edycji przepisów, zawierający pola na tekstowe składniki, instrukcje, walidację i logikę komunikacji z API.
 - **`PreferenceColumn`:**
   - **Opis:** Komponent używany w widoku preferencji do zarządzania jedną z list ("Lubię", "Nie lubię", "Alergeny").
 - **`AI_GenerationModal`:**

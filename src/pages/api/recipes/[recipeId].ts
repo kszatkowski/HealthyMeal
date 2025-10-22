@@ -20,11 +20,8 @@ const recipeIdParamSchema = z.object({
 const errorStatusMap: Record<string, number> = {
   invalid_payload: 400,
   invalid_recipe_id: 400,
-  invalid_ingredient_unit: 400,
-  duplicate_ingredient: 400,
-  product_not_found: 404,
   recipe_not_found: 404,
-  ingredient_limit_exceeded: 422,
+  ingredients_too_long: 422,
   instructions_too_long: 422,
   internal_error: 500,
 };
@@ -35,11 +32,8 @@ const errorStatusMap: Record<string, number> = {
 const errorMessageMap: Record<string, string> = {
   invalid_payload: "Submitted payload is invalid.",
   invalid_recipe_id: "Recipe ID must be a valid UUID.",
-  invalid_ingredient_unit: "One or more ingredients use an unsupported unit.",
-  duplicate_ingredient: "Each ingredient must reference a unique product.",
-  product_not_found: "One or more referenced products were not found.",
   recipe_not_found: "Recipe not found or you don't have permission to access it.",
-  ingredient_limit_exceeded: "The number of ingredients exceeds the allowed limit.",
+  ingredients_too_long: "Ingredients exceed the maximum allowed length.",
   instructions_too_long: "Instructions exceed the maximum allowed length.",
   internal_error: "An internal server error occurred.",
 };
@@ -210,11 +204,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
       difficulty: bodyValidation.data.difficulty,
       instructions: bodyValidation.data.instructions,
       isAiGenerated: bodyValidation.data.isAiGenerated ?? false,
-      ingredients: bodyValidation.data.ingredients.map((ingredient) => ({
-        productId: ingredient.productId,
-        amount: ingredient.amount,
-        unit: ingredient.unit,
-      })),
+      ingredients: bodyValidation.data.ingredients,
     };
 
     // Call the service to update the recipe

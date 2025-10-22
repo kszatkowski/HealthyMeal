@@ -49,10 +49,7 @@ const recipeListQuerySchema = z
 const errorStatusMap: Record<string, number> = {
   invalid_payload: 400,
   invalid_query_params: 400,
-  invalid_ingredient_unit: 400,
-  duplicate_ingredient: 400,
-  product_not_found: 404,
-  ingredient_limit_exceeded: 422,
+  ingredients_too_long: 422,
   instructions_too_long: 422,
   internal_error: 500,
 };
@@ -60,10 +57,7 @@ const errorStatusMap: Record<string, number> = {
 const errorMessageMap: Record<string, string> = {
   invalid_payload: "Submitted payload is invalid.",
   invalid_query_params: "Query parameters are invalid.",
-  invalid_ingredient_unit: "One or more ingredients use an unsupported unit.",
-  duplicate_ingredient: "Each ingredient must reference a unique product.",
-  product_not_found: "One or more referenced products were not found.",
-  ingredient_limit_exceeded: "The number of ingredients exceeds the allowed limit.",
+  ingredients_too_long: "Ingredients exceed the maximum allowed length.",
   instructions_too_long: "Instructions exceed the maximum allowed length.",
   internal_error: "Failed to create recipe due to an internal error.",
 };
@@ -75,11 +69,7 @@ function toRecipeCommand(input: z.infer<typeof recipeUpdateCommandSchema>): Reci
     difficulty: input.difficulty,
     instructions: input.instructions,
     isAiGenerated: input.isAiGenerated ?? false,
-    ingredients: input.ingredients.map((ingredient) => ({
-      productId: ingredient.productId,
-      amount: ingredient.amount,
-      unit: ingredient.unit,
-    })),
+    ingredients: input.ingredients,
   } satisfies RecipeCreateCommand;
 }
 
