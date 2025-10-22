@@ -22,7 +22,6 @@ try {
     return new Response(null, { status: 401 });
   }
   recipe = await getRecipe(Astro.locals.supabase, user.id, recipeId);
-  console.log(recipe);
 } catch (error) {
   if (error instanceof RecipeServiceError && error.code === "recipe_not_found") {
     return new Response(null, { status: 404 });
