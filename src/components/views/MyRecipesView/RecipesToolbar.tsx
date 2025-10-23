@@ -1,11 +1,20 @@
 import { Button } from "@/components/ui/button";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ComponentPropsWithoutRef } from "react";
+import { GenerateRecipeButton } from "./GenerateRecipeButton";
 
-type RecipesToolbarProps = ComponentPropsWithoutRef<"div">;
+interface RecipesToolbarProps extends ComponentPropsWithoutRef<"div"> {
+  onGenerateRecipeClick?: () => void;
+  requestsRemaining?: number;
+}
 
-export function RecipesToolbar({ className, ...props }: RecipesToolbarProps) {
+export function RecipesToolbar({
+  className,
+  onGenerateRecipeClick,
+  requestsRemaining = 0,
+  ...props
+}: RecipesToolbarProps) {
   return (
     <div
       className={cn(
@@ -27,12 +36,9 @@ export function RecipesToolbar({ className, ...props }: RecipesToolbarProps) {
             Dodaj nowy przepis
           </a>
         </Button>
-        <Button variant="outline" asChild className="sm:w-auto">
-          <a href="/recipes/generate" className="flex items-center gap-2">
-            <Sparkles className="size-4" aria-hidden="true" />
-            Generuj przepis z AI
-          </a>
-        </Button>
+        {onGenerateRecipeClick ? (
+          <GenerateRecipeButton onOpen={onGenerateRecipeClick} requestsRemaining={requestsRemaining} />
+        ) : null}
       </div>
     </div>
   );

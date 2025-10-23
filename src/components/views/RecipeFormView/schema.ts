@@ -27,6 +27,7 @@ export const recipeFormSchema = z.object({
     .string()
     .min(1, "Dodaj co najmniej jeden składnik")
     .max(RECIPE_INGREDIENTS_MAX_LENGTH, `Składniki nie mogą przekraczać ${RECIPE_INGREDIENTS_MAX_LENGTH} znaków`),
+  isAiGenerated: z.boolean().optional(),
 });
 
 export type RecipeFormViewModel = z.infer<typeof recipeFormSchema>;
@@ -37,4 +38,5 @@ export const defaultRecipeFormValues: RecipeFormViewModel = {
   difficulty: DIFFICULTIES[0],
   instructions: "",
   ingredients: "",
+  isAiGenerated: false,
 };

@@ -26,6 +26,7 @@ function toCreateCommand(data: RecipeFormViewModel): RecipeCreateCommand {
     difficulty: data.difficulty,
     instructions: data.instructions.trim(),
     ingredients: data.ingredients.trim(),
+    isAiGenerated: data.isAiGenerated,
   };
 }
 
@@ -33,23 +34,56 @@ const navigateToRecipes = () => {
   window.location.href = "/";
 };
 
+// Session storage key for AI-generated recipes
+const SESSION_STORAGE_KEY = "ai-generated-recipe";
+
 export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
   const [hasMountedToaster, setHasMountedToaster] = useState(false);
   const isEditMode = !!recipeId && !!initialData;
 
-  // Convert initial data to form values if editing
+  // Convert initial data to form values if editing or load from sessionStorage
   const getInitialValues = useCallback((): RecipeFormViewModel => {
-    if (!isEditMode || !initialData) {
-      return defaultRecipeFormValues;
+    // First, try to load from sessionStorage (AI-generated recipe)
+    if (typeof window !== "undefined") {
+      try {
+        const storedData = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (storedData) {
+          const parsedData = JSON.parse(storedData) as unknown;
+          // Validate that it has the expected structure
+          if (
+            parsedData &&
+            typeof parsedData === "object" &&
+            "name" in parsedData &&
+            "mealType" in parsedData &&
+            "difficulty" in parsedData &&
+            "instructions" in parsedData &&
+            "ingredients" in parsedData
+          ) {
+            const data = parsedData as RecipeFormViewModel;
+            // Clear sessionStorage after loading
+            sessionStorage.removeItem(SESSION_STORAGE_KEY);
+            return data;
+          }
+        }
+      } catch (error) {
+        console.warn("Failed to parse AI recipe from sessionStorage", { error });
+      }
     }
 
-    return {
-      name: initialData.name,
-      mealType: initialData.mealType,
-      difficulty: initialData.difficulty,
-      instructions: initialData.instructions,
-      ingredients: initialData.ingredients,
-    };
+    // Then, check if editing existing recipe
+    if (isEditMode && initialData) {
+      return {
+        name: initialData.name,
+        mealType: initialData.mealType,
+        difficulty: initialData.difficulty,
+        instructions: initialData.instructions,
+        ingredients: initialData.ingredients,
+        isAiGenerated: initialData.isAiGenerated,
+      };
+    }
+
+    // Default empty form
+    return defaultRecipeFormValues;
   }, [isEditMode, initialData]);
 
   const form = useForm<RecipeFormViewModel>({

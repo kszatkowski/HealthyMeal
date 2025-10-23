@@ -62,18 +62,7 @@ curl -X POST http://localhost:4321/api/recipes/generate \
     "difficulty": "easy",
     "instructions": "1. Preheat oven to 400°F. 2. Season chicken with lemon, herbs, salt and pepper. 3. Place on baking sheet with broccoli florets. 4. Roast for 25-30 minutes until chicken is cooked through.",
     "isAiGenerated": true,
-    "ingredients": [
-      {
-        "productId": "550e8400-e29b-41d4-a716-446655440000",
-        "amount": 2,
-        "unit": "piece"
-      },
-      {
-        "productId": "550e8400-e29b-41d4-a716-446655440001",
-        "amount": 300,
-        "unit": "g"
-      }
-    ]
+    "ingredients": "2 boneless, skinless chicken breasts\\n1 head of broccoli, cut into florets\\n1 tbsp olive oil\\n1 lemon, juiced\\n1 tsp dried herbs (e.g., oregano or thyme)\\nSalt and pepper to taste"
   }
 }
 ```
@@ -102,7 +91,7 @@ curl -X POST http://localhost:4321/api/recipes/generate \
   "details": [
     {
       "path": ["ingredients"],
-      "message": "Ingredients must be an array"
+      "message": "Ingredients must be a string and cannot be empty"
     }
   ]
 }
@@ -189,10 +178,9 @@ The endpoint uses:
 ## Notes
 
 - The `isAiGenerated` flag is automatically set to `true` for generated recipes
-- Product IDs in ingredients must be valid UUIDs pointing to existing products
-- Recipe names must be 1-200 characters
-- Instructions must be 1-2000 characters
-- Maximum 50 ingredients per recipe
+- Recipe names must be 1-50 characters
+- Instructions must be 1-5000 characters
+- The ingredients field is a single text block and cannot exceed 1000 characters
 
 ## Testing
 
@@ -203,9 +191,7 @@ To test the endpoint locally:
 npm run dev
 
 # In another terminal
-curl -X POST http://localhost:4321/api/recipes/generate \
+curl -X POST http://localhost:3000/api/recipes/generate \
   -H "Content-Type: application/json" \
   -d '{"prompt": "Quick 15 minute pasta dinner"}'
 ```
-
-

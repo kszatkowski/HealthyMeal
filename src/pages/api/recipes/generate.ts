@@ -9,6 +9,8 @@ import {
   NetworkError,
 } from "../../../lib/services/openrouter.service";
 import { recipeUpdateCommandSchema } from "../../../lib/schemas/recipe.schema";
+import { getProfile, ProfileServiceError } from "../../../lib/services/profile.service";
+import type { RecipeUpdateCommand } from "../../../types";
 
 // ============================================================================
 // Request Schema
@@ -20,7 +22,7 @@ const generateRecipeRequestSchema = z
       .string({ invalid_type_error: "prompt must be a string" })
       .trim()
       .min(1, "prompt cannot be empty")
-      .max(1000, "prompt must not exceed 1000 characters"),
+      .max(1500, "prompt must not exceed 1500 characters"),
     model: z.string().optional().describe("Optional model override from default"),
   })
   .strict();
@@ -94,11 +96,58 @@ function handleError(error: unknown): { status: number; body: unknown } {
 }
 
 // ============================================================================
+// Response Schema
+// ============================================================================
+
+interface GenerateRecipeSuccessResponse {
+  success: true;
+  data: RecipeUpdateCommand;
+  aiRequestsRemaining: number;
+}
+
+// ============================================================================
 // API Endpoint
 // ============================================================================
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
+  // Verify user authentication
+  if (!locals.user || !locals.user.id) {
+    console.warn("POST /api/recipes/generate: Unauthorized access attempt");
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Authentication required. Please provide a valid token.",
+      }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   try {
+    // Fetch user profile to check AI requests quota
+    let aiRequestsRemaining = 0;
+    try {
+      const profile = await getProfile(locals.supabase, locals.user.id);
+      aiRequestsRemaining = profile.aiRequestsCount;
+    } catch (profileError) {
+      if (profileError instanceof ProfileServiceError) {
+        console.warn("POST /api/recipes/generate: Failed to fetch profile", {
+          code: profileError.code,
+        });
+      }
+      // Continue anyway - API quota check is not critical
+    }
+
+    // Check if user has remaining requests
+    if (aiRequestsRemaining <= 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Daily AI request limit reached. Please try again tomorrow.",
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     // Parse request body
     const body = await request.json().catch(() => ({}));
     const validationResult = generateRecipeRequestSchema.safeParse(body);
@@ -122,9 +171,16 @@ export const POST: APIRoute = async ({ request }) => {
       ...(model && { model }),
     });
 
-    const response = {
+    // Ensure isAiGenerated is set to true for AI-generated recipes
+    const recipeData: RecipeUpdateCommand = {
+      ...generatedRecipe,
+      isAiGenerated: true,
+    };
+
+    const response: GenerateRecipeSuccessResponse = {
       success: true,
-      data: generatedRecipe,
+      data: recipeData,
+      aiRequestsRemaining: aiRequestsRemaining - 1,
     };
 
     return new Response(JSON.stringify(response), {
@@ -139,3 +195,5 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 };
+
+export const prerender = false;
