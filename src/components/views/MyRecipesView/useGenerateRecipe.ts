@@ -5,7 +5,9 @@ import type { RecipeUpdateCommand } from "@/types";
 interface UseGenerateRecipeResult {
   isGenerating: boolean;
   error: string | null;
-  generateRecipe: (formData: GenerateRecipeFormViewModel) => Promise<RecipeUpdateCommand | null>;
+  generateRecipe: (
+    formData: GenerateRecipeFormViewModel
+  ) => Promise<{ recipe: RecipeUpdateCommand; aiRequestsRemaining: number } | null>;
 }
 
 const SESSION_STORAGE_KEY = "ai-generated-recipe";
@@ -43,7 +45,9 @@ Poziom trudności musi być jednym z: easy, medium, hard.`;
    * On error: Sets error state and returns null.
    */
   const generateRecipe = useCallback(
-    async (formData: GenerateRecipeFormViewModel): Promise<RecipeUpdateCommand | null> => {
+    async (
+      formData: GenerateRecipeFormViewModel
+    ): Promise<{ recipe: RecipeUpdateCommand; aiRequestsRemaining: number } | null> => {
       // Guard: Check if already generating
       if (isGenerating) {
         return null;
@@ -95,6 +99,7 @@ Poziom trudności musi być jednym z: easy, medium, hard.`;
 
         const responseData = data as { success?: boolean; data: RecipeUpdateCommand; aiRequestsRemaining: number };
         const recipeData = responseData.data;
+        const aiRequestsRemaining = responseData.aiRequestsRemaining;
 
         // Save generated recipe to sessionStorage for use in the form
         try {
@@ -103,7 +108,7 @@ Poziom trudności musi być jednym z: easy, medium, hard.`;
           // Continue anyway - the generation succeeded, just the storage failed
         }
 
-        return recipeData;
+        return { recipe: recipeData, aiRequestsRemaining };
       } catch (fetchError) {
         // Handle network errors and other exceptions
         const message = fetchError instanceof Error ? fetchError.message : "Błąd sieci. Spróbuj ponownie.";

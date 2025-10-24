@@ -9,7 +9,7 @@ import {
   NetworkError,
 } from "../../../lib/services/openrouter.service";
 import { recipeUpdateCommandSchema } from "../../../lib/schemas/recipe.schema";
-import { getProfile, ProfileServiceError } from "../../../lib/services/profile.service";
+import { getProfile, decrementAiRequestsCount, ProfileServiceError } from "../../../lib/services/profile.service";
 import type { RecipeUpdateCommand } from "../../../types";
 
 // ============================================================================
@@ -177,10 +177,46 @@ export const POST: APIRoute = async ({ request, locals }) => {
       isAiGenerated: true,
     };
 
+    // Decrement AI requests count in database
+    let updatedProfile;
+    try {
+      updatedProfile = await decrementAiRequestsCount(locals.supabase, locals.user.id);
+    } catch (profileUpdateError) {
+      if (profileUpdateError instanceof ProfileServiceError) {
+        console.warn("POST /api/recipes/generate: Failed to decrement AI requests count", {
+          code: profileUpdateError.code,
+          message: profileUpdateError.message,
+        });
+
+        // If we can't decrement (no requests remaining), return 429 error
+        if (
+          profileUpdateError.code === "internal_error" &&
+          profileUpdateError.message?.includes("no requests remaining")
+        ) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Daily AI request limit reached. Please try again tomorrow.",
+            }),
+            { status: 429, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      }
+      // For other errors, return 500
+      console.error("POST /api/recipes/generate: Unexpected error during decrement", profileUpdateError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Failed to process AI request. Please try again later.",
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const response: GenerateRecipeSuccessResponse = {
       success: true,
       data: recipeData,
-      aiRequestsRemaining: aiRequestsRemaining - 1,
+      aiRequestsRemaining: updatedProfile.aiRequestsCount,
     };
 
     return new Response(JSON.stringify(response), {

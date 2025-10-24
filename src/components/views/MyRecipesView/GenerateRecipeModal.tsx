@@ -38,7 +38,7 @@ export function GenerateRecipeModal({
    */
   const handleFormSubmit = useCallback(
     async (data: GenerateRecipeFormViewModel) => {
-      // Early return if no requests remaining
+      // Guard: Early return if no requests remaining
       if (requestsRemaining <= 0) {
         toast.error("Osiągnąłeś dzienny limit zapytań AI. Spróbuj jutro.");
         return;
@@ -57,7 +57,7 @@ export function GenerateRecipeModal({
       // Success: Close modal and navigate
       toast.success("Przepis został wygenerowany! Przechodzę do formularza...");
       onClose();
-      onGenerationSuccess(requestsRemaining - 1);
+      onGenerationSuccess(result.aiRequestsRemaining);
 
       // Navigate to recipe form with generated data in sessionStorage
       setTimeout(() => {

@@ -16,13 +16,70 @@ export class ProfileServiceError extends Error {
 }
 
 /**
- * Retrieves user profile with preference counters.
- * Counts likes, dislikes, and allergens from user_preferences table.
+ * Decrements the AI requests count for a user.
+ * Used after successful AI recipe generation.
+ * Ensures the count doesn't go below 0.
  */
-export async function getProfile(
+export async function decrementAiRequestsCount(
   supabase: SupabaseServerClient,
   userId: string
 ): Promise<ProfileResponseDto> {
+  // Guard: Validate input
+  if (!userId || typeof userId !== "string") {
+    throw new ProfileServiceError("invalid_input", "Invalid user ID");
+  }
+
+  try {
+    // First, fetch current count to ensure it's > 0 before decrementing
+    const { data: currentProfile, error: fetchError } = await supabase
+      .from("profiles")
+      .select("ai_requests_count")
+      .eq("id", userId)
+      .single();
+
+    if (fetchError || !currentProfile) {
+      throw new ProfileServiceError("profile_not_found", "Profile not found for user", fetchError);
+    }
+
+    // Guard: Ensure we have requests remaining before decrementing
+    if (currentProfile.ai_requests_count <= 0) {
+      throw new ProfileServiceError(
+        "internal_error",
+        "Cannot decrement AI requests count: no requests remaining",
+        new Error("Attempted to decrement when count is 0 or negative")
+      );
+    }
+
+    // Decrement ai_requests_count by 1
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({
+        ai_requests_count: currentProfile.ai_requests_count - 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .gt("ai_requests_count", 0); // Ensure we only decrement if count > 0
+
+    if (updateError) {
+      throw new ProfileServiceError("internal_error", "Failed to decrement AI requests count", updateError);
+    }
+
+    // Fetch updated profile to return
+    return getProfile(supabase, userId);
+  } catch (error) {
+    if (error instanceof ProfileServiceError) {
+      throw error;
+    }
+
+    throw new ProfileServiceError("internal_error", "Failed to decrement AI requests count", error);
+  }
+}
+
+/**
+ * Retrieves user profile with preference counters.
+ * Counts likes, dislikes, and allergens from user_preferences table.
+ */
+export async function getProfile(supabase: SupabaseServerClient, userId: string): Promise<ProfileResponseDto> {
   // Guard: Validate input
   if (!userId || typeof userId !== "string") {
     throw new ProfileServiceError("invalid_input", "Invalid user ID");
@@ -94,10 +151,7 @@ export async function updateProfile(
       onboarding_notification_hidden_until: command.onboardingNotificationHiddenUntil,
     };
 
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update(updatePayload)
-      .eq("id", userId);
+    const { error: updateError } = await supabase.from("profiles").update(updatePayload).eq("id", userId);
 
     if (updateError) {
       throw new ProfileServiceError("internal_error", "Failed to update profile", updateError);

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -19,9 +19,18 @@ export function MyRecipesView({ className }: { className?: string }) {
   const [showOnboardingNotice, setShowOnboardingNotice] = useState(true);
   const [hasMountedToaster, setHasMountedToaster] = useState(false);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [localRequestsRemaining, setLocalRequestsRemaining] = useState<number | null>(null);
 
   const selectedMealType = filters.mealType ?? "all";
-  const requestsRemaining = profile?.aiRequestsCount ?? 0;
+  // Use local override if available, otherwise use profile data
+  const requestsRemaining = localRequestsRemaining !== null ? localRequestsRemaining : (profile?.aiRequestsCount ?? 0);
+
+  // Clear local override when profile finishes loading to stay in sync with server
+  useEffect(() => {
+    if (!isProfileLoading && localRequestsRemaining !== null) {
+      setLocalRequestsRemaining(null);
+    }
+  }, [isProfileLoading, localRequestsRemaining]);
 
   const handleMealTypeChange = (value: RecipeFiltersViewModel["mealType"] | "all") => {
     updateFilters({ mealType: value === "all" ? undefined : value });
@@ -41,11 +50,13 @@ export function MyRecipesView({ className }: { className?: string }) {
 
   /**
    * Called when recipe generation succeeds.
-   * Updates the local requests count to reflect the decrement.
+   * Immediately updates the local requests count and refetches profile for consistency.
    */
   const handleGenerationSuccess = useCallback(
     (newCount: number) => {
-      // Optionally refetch profile to ensure consistency
+      // Update local state immediately for instant UI feedback
+      setLocalRequestsRemaining(newCount);
+      // Refetch profile to ensure consistency with server
       refetchProfile();
     },
     [refetchProfile]
