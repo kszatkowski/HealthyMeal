@@ -1,0 +1,20 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.astro/
+
+# test results and coverage
+coverage/
+test-results/
+playwright-report/
+blob-report/
+
+# cache
+.vitest/
+.cache/
+
+# environment
+.env*
+!.env.example
