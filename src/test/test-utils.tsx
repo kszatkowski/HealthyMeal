@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { render, type RenderOptions } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 /**
  * Custom render function for tests
@@ -15,6 +16,9 @@ const customRender = (ui: ReactElement, options?: Omit<RenderOptions, "wrapper">
 
 // Re-export everything from React Testing Library
 export * from "@testing-library/react";
+
+// Export userEvent for easier access
+export { userEvent };
 
 // Override the default render function
 export { customRender as render };
