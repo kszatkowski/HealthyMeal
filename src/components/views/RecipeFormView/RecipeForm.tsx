@@ -175,7 +175,9 @@ export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
       <header className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h1 className="text-3xl font-semibold text-foreground">{pageTitle}</h1>
+            <h1 className="text-3xl font-semibold text-foreground" data-testid="recipe-form-page-title">
+              {pageTitle}
+            </h1>
             <p className="text-muted-foreground">{pageDescription}</p>
           </div>
           <Button
@@ -205,7 +207,7 @@ export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
                 <FormItem>
                   <FormLabel>Nazwa przepisu</FormLabel>
                   <FormControl>
-                    <Input placeholder="np. Sałatka z kurczakiem" {...field} />
+                    <Input placeholder="np. Sałatka z kurczakiem" {...field} data-testid="recipe-name-input" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -221,7 +223,7 @@ export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
                     <FormLabel>Rodzaj posiłku</FormLabel>
                     <FormControl>
                       <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger aria-label="Rodzaj posiłku">
+                        <SelectTrigger aria-label="Rodzaj posiłku" data-testid="recipe-meal-type-select">
                           <SelectValue placeholder="Wybierz rodzaj" />
                         </SelectTrigger>
                         <SelectContent>
@@ -246,7 +248,7 @@ export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
                     <FormLabel>Poziom trudności</FormLabel>
                     <FormControl>
                       <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger aria-label="Poziom trudności">
+                        <SelectTrigger aria-label="Poziom trudności" data-testid="recipe-difficulty-select">
                           <SelectValue placeholder="Wybierz poziom" />
                         </SelectTrigger>
                         <SelectContent>
@@ -272,6 +274,7 @@ export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
                     <textarea
                       className="h-48 w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed text-foreground shadow-sm outline-none transition-all focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
                       placeholder="Opisz krok po kroku proces przygotowania..."
+                      data-testid="recipe-instructions-textarea"
                       {...field}
                     />
                   </FormControl>
@@ -290,6 +293,7 @@ export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
                     <textarea
                       className="h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed text-foreground shadow-sm outline-none transition-all focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
                       placeholder="Wymień składniki, np.:&#10;Mąka owsiana - 1 szklanka&#10;Mleko migdałowe - 1 szklanka&#10;Miód - 1 łyżka stołowa"
+                      data-testid="recipe-ingredients-textarea"
                       {...field}
                     />
                   </FormControl>
@@ -312,10 +316,11 @@ export function RecipeForm({ recipeId, initialData }: RecipeFormProps) {
                 }
               }}
               disabled={disableSubmit}
+              data-testid="recipe-form-cancel-button"
             >
               Anuluj
             </Button>
-            <Button type="submit" disabled={disableSubmit}>
+            <Button type="submit" disabled={disableSubmit} data-testid="recipe-form-submit-button">
               {submitButtonText}
             </Button>
           </div>

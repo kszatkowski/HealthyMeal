@@ -30,7 +30,7 @@ export function RecipesToolbar({
         </p>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Button asChild className="sm:w-auto">
+        <Button asChild className="sm:w-auto" data-testid="add-recipe-button">
           <a href="/recipes/new" className="flex items-center gap-2">
             <Plus className="size-4" aria-hidden="true" />
             Dodaj nowy przepis

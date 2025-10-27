@@ -93,7 +93,13 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="jan.kowalski@example.com" autoComplete="email" inputMode="email" {...field} />
+                    <Input
+                      placeholder="jan.kowalski@example.com"
+                      autoComplete="email"
+                      inputMode="email"
+                      data-testid="login-email-input"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -107,14 +113,20 @@ export function LoginForm() {
                 <FormItem>
                   <FormLabel>Hasło</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" autoComplete="current-password" {...field} />
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      data-testid="login-password-input"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="login-button">
               {isSubmitting ? (
                 <>
                   <Loader2Icon className="mr-2 size-4 animate-spin" aria-hidden />

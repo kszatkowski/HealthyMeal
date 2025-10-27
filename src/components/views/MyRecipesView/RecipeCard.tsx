@@ -45,14 +45,16 @@ export function RecipeCard({ recipe, onDelete }: RecipeCardProps) {
 
   return (
     <>
-      <Card
-        asChild
-        className="transition hover:border-primary/60 focus-within:border-primary/60 focus-within:shadow-md"
-      >
+      <Card className="transition hover:border-primary/60 focus-within:border-primary/60 focus-within:shadow-md">
         <a href={`/recipes/${recipe.id}`} className="outline-none">
           <CardHeader className="space-y-2">
             <div className="flex items-start justify-between gap-3">
-              <CardTitle className="line-clamp-2 text-base font-semibold text-foreground">{recipe.name}</CardTitle>
+              <CardTitle
+                className="line-clamp-2 text-base font-semibold text-foreground"
+                data-testid="recipe-card-name"
+              >
+                {recipe.name}
+              </CardTitle>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button

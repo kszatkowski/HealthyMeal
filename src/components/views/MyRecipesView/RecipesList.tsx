@@ -50,7 +50,11 @@ export function RecipesList({ recipes, isLoading, error, onDelete, onRetry, clas
   }
 
   return (
-    <div className={cn("grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4", className)} {...props}>
+    <div
+      className={cn("grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4", className)}
+      {...props}
+      data-testid="recipes-list"
+    >
       {recipes.map((recipe) => (
         <RecipeCard key={recipe.id} recipe={recipe} onDelete={onDelete} />
       ))}

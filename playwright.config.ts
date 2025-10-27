@@ -1,4 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 /**
  * Playwright configuration
@@ -25,8 +32,18 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
+      name: "setup",
+      testMatch: ["**/*auth.setup.ts"],
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "chromium",
+      testMatch: "**/*e2e.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: path.join(__dirname, "src/playwright/.auth/user.json"),
+      },
+      dependencies: ["setup"],
     },
   ],
   webServer: {
