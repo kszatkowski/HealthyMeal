@@ -106,4 +106,3 @@ export const GET: APIRoute = async ({ request }) => {
 };
 
 export const prerender = false;
-

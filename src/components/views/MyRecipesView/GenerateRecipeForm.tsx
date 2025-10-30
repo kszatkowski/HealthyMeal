@@ -36,7 +36,7 @@ export function GenerateRecipeForm({ onSubmit, isSubmitting, requestsRemaining }
     mode: "onTouched",
   });
 
-  const { control, handleSubmit, formState } = form;
+  const { control, handleSubmit } = form;
 
   const handleFormSubmit = useCallback<SubmitHandler<GenerateRecipeFormViewModel>>(
     (data) => {
