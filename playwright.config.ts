@@ -48,7 +48,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: process.env.ENV_MODE === "test" ? "npm run dev:e2e" : "npm run dev",
+    command: process.env.ENV_MODE === "test" ? "npm run dev:test" : "npm run dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
