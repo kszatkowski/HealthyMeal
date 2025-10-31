@@ -25,6 +25,8 @@ Object.defineProperty(window, "matchMedia", {
 // Mock window.scrollTo
 window.scrollTo = vi.fn();
 
+/* eslint-disable @typescript-eslint/no-useless-constructor, @typescript-eslint/no-empty-function, @typescript-eslint/no-explicit-any */
+
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
   constructor() {}

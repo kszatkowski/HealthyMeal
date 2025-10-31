@@ -11,8 +11,6 @@ const profileUpdateSchema = z
   })
   .strict();
 
-type ProfileUpdateRequest = z.infer<typeof profileUpdateSchema>;
-
 const errorStatusMap: Record<string, number> = {
   profile_not_found: 404,
   invalid_input: 400,
