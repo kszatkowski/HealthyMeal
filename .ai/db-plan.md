@@ -7,7 +7,6 @@ This document outlines the PostgreSQL database schema for the HealthyMeal applic
 Custom ENUM types to ensure data consistency across the application.
 
 ```sql
-CREATE TYPE preference_type AS ENUM ('like', 'dislike', 'allergen');
 CREATE TYPE meal_type AS ENUM ('breakfast', 'lunch', 'dinner', 'dessert', 'snack');
 CREATE TYPE recipe_difficulty AS ENUM ('easy', 'medium', 'hard');
 ```
@@ -40,37 +39,11 @@ Stores user-specific application data, extending the `users` table.
 | ------------------------------------ | ------------- | ----------------------------------------- | --------------------------------------------------------------------------- |
 | `id`                                 | `uuid`        | `PRIMARY KEY`, `REFERENCES users(id)` | Foreign key to `users`, creating a 1-to-1 relationship.               |
 | `ai_requests_count`                  | `smallint`    | `NOT NULL`, `DEFAULT 3`                   | Daily counter for AI recipe generation requests. Resets daily via pg_cron.  |
+| `disliked_ingredients_note`          | `varchar(200)`|                                           | Free-form text listing ingredients the user wants to avoid.                  |
+| `allergens_note`                     | `varchar(200)`|                                           | Free-form text listing allergen warnings provided by the user.              |
 | `onboarding_notification_hidden_until` | `timestamptz` |                                           | Stores the timestamp until which the onboarding notification should be hidden. |
 | `created_at`                         | `timestamptz` | `NOT NULL`, `DEFAULT now()`               | Timestamp of profile creation.                                              |
 | `updated_at`                         | `timestamptz` | `NOT NULL`, `DEFAULT now()`               | Timestamp of the last profile update.                                       |
-
-### `products`
-
-A dictionary table containing all available food products.
-
-- **Primary Key**: `id`.
-
-| Column     | Type          | Constraints                                  | Description                         |
-| ---------- | ------------- | -------------------------------------------- | ----------------------------------- |
-| `id`       | `uuid`        | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | Unique identifier for the product.  |
-| `name`     | `varchar(50)`        | `NOT NULL`, `UNIQUE`                         | Name of the food product.           |
-| `created_at` | `timestamptz` | `NOT NULL`, `DEFAULT now()`                | Timestamp of product creation.      |
-
-### `user_preferences`
-
-A join table linking users to products, defining their dietary preferences.
-
-- **Relationship**: Many-to-Many between `users` and `products`.
-- **Primary Key**: `id`.
-
-| Column            | Type              | Constraints                                                                                             | Description                                                     |
-| ----------------- | ----------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `id`              | `uuid`            | `PRIMARY KEY`, `DEFAULT gen_random_uuid()`                                                            | Unique identifier for the preference entry.                     |
-| `user_id`         | `uuid`            | `NOT NULL`, `REFERENCES users(id) ON DELETE CASCADE`                                                 | Foreign key to the `users` table.                            |
-| `product_id`      | `uuid`            | `NOT NULL`, `REFERENCES products(id) ON DELETE CASCADE`                                                 | Foreign key to the `products` table.                            |
-| `preference_type` | `preference_type` | `NOT NULL`                                                                                              | Type of preference ('like', 'dislike', 'allergen').             |
-| `created_at`      | `timestamptz`     | `NOT NULL`, `DEFAULT now()`                                                                             | Timestamp of preference creation.                               |
-| **Constraints**   |                   | `UNIQUE (user_id, product_id)`                                                                          | Ensures a user can only have one preference type per product.   |
 
 ### `recipes`
 
@@ -109,22 +82,14 @@ RLS policies to ensure users can only access their own data. RLS must be enabled
 ```sql
 -- Enable RLS for all tables
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products ENABLE ROW LEVEL SECURITY; -- All users can read all products
 
 -- Policies for `profiles`
 CREATE POLICY "Users can view their own profile" ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update their own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
--- Policies for `user_preferences`
-CREATE POLICY "Users can manage their own preferences" ON user_preferences FOR ALL USING (auth.uid() = user_id);
-
 -- Policies for `recipes`
 CREATE POLICY "Users can manage their own recipes" ON recipes FOR ALL USING (auth.uid() = user_id);
-
--- Policies for `products`
-CREATE POLICY "All authenticated users can read products" ON products FOR SELECT TO authenticated USING (true);
 ```
 
 ## 5. Automation & Triggers
@@ -164,53 +129,6 @@ $$ LANGUAGE plpgsql;
 -- Apply trigger to relevant tables
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_recipes_updated_at BEFORE UPDATE ON recipes FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-```
-
-### Function & Trigger: `validate_user_preferences`
-
-Validates preference conflicts and enforces limits before inserting or updating `user_preferences`.
-
-```sql
-CREATE OR REPLACE FUNCTION public.validate_user_preferences()
-RETURNS TRIGGER AS $$
-DECLARE
-  like_count INTEGER;
-  dislike_count INTEGER;
-  allergen_count INTEGER;
-  conflicting_preference preference_type;
-BEGIN
-  -- 1. Check for conflicting preferences
-  SELECT preference_type INTO conflicting_preference
-  FROM user_preferences
-  WHERE user_id = NEW.user_id AND product_id = NEW.product_id AND id != NEW.id;
-
-  IF conflicting_preference IS NOT NULL THEN
-    RAISE EXCEPTION 'Conflict: This product is already in the "%" list.', conflicting_preference;
-  END IF;
-
-  -- 2. Enforce the 30-item limit per category
-  SELECT
-    COUNT(*) FILTER (WHERE preference_type = 'like') INTO like_count,
-    COUNT(*) FILTER (WHERE preference_type = 'dislike') INTO dislike_count,
-    COUNT(*) FILTER (WHERE preference_type = 'allergen') INTO allergen_count
-  FROM user_preferences
-  WHERE user_id = NEW.user_id;
-
-  IF NEW.preference_type = 'like' AND like_count >= 30 THEN
-    RAISE EXCEPTION 'Limit reached: You cannot add more than 30 items to the "like" list.';
-  ELSIF NEW.preference_type = 'dislike' AND dislike_count >= 30 THEN
-    RAISE EXCEPTION 'Limit reached: You cannot add more than 30 items to the "dislike" list.';
-  ELSIF NEW.preference_type = 'allergen' AND allergen_count >= 30 THEN
-    RAISE EXCEPTION 'Limit reached: You cannot add more than 30 items to the "allergen" list.';
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER before_user_preferences_insert_update
-  BEFORE INSERT OR UPDATE ON user_preferences
-  FOR EACH ROW EXECUTE PROCEDURE public.validate_user_preferences();
 ```
 
 ### Scheduled Job: `reset_ai_requests`

@@ -1,10 +1,7 @@
-import type { Tables, TablesInsert } from "./db/database.types";
+import type { Tables } from "./db/database.types";
 
 // Base aliases to keep DTOs connected to the underlying database schema.
 type ProfileRow = Tables<"profiles">;
-type ProductRow = Tables<"products">;
-type UserPreferenceRow = Tables<"user_preferences">;
-type UserPreferenceInsert = TablesInsert<"user_preferences">;
 type RecipeRow = Tables<"recipes">;
 
 // -----------------------------------------------------------------------------
@@ -14,58 +11,22 @@ type RecipeRow = Tables<"recipes">;
 export interface ProfileResponseDto {
   id: ProfileRow["id"];
   aiRequestsCount: ProfileRow["ai_requests_count"];
+  dislikedIngredientsNote: ProfileRow["disliked_ingredients_note"];
+  allergensNote: ProfileRow["allergens_note"];
   onboardingNotificationHiddenUntil: ProfileRow["onboarding_notification_hidden_until"];
   createdAt: ProfileRow["created_at"];
   updatedAt: ProfileRow["updated_at"];
-  likesCount: number;
-  dislikesCount: number;
-  allergensCount: number;
+}
+
+export interface UpdateProfilePayload {
+  dislikedIngredientsNote?: string | null;
+  allergensNote?: string | null;
+  onboardingNotificationHiddenUntil?: string | null;
 }
 
 export interface ProfileUpdateCommand {
   /** Allows null to clear the dismissal window. */
   onboardingNotificationHiddenUntil: ProfileRow["onboarding_notification_hidden_until"];
-}
-
-// -----------------------------------------------------------------------------
-// Products
-// -----------------------------------------------------------------------------
-
-export type ProductListItemDto = Pick<ProductRow, "id" | "name">;
-
-export type ProductResponseDto = ProductListItemDto;
-
-export interface ProductListResponseDto {
-  items: ProductListItemDto[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-// -----------------------------------------------------------------------------
-// User Preferences
-// -----------------------------------------------------------------------------
-
-export interface PreferenceListItemDto {
-  id: UserPreferenceRow["id"];
-  preferenceType: UserPreferenceRow["preference_type"];
-  createdAt: UserPreferenceRow["created_at"];
-  product: ProductListItemDto;
-}
-
-export type PreferenceResponseDto = PreferenceListItemDto;
-
-export interface PreferenceListResponseDto {
-  items: PreferenceListItemDto[];
-}
-
-export interface PreferenceCreateCommand {
-  productId: UserPreferenceInsert["product_id"];
-  preferenceType: UserPreferenceInsert["preference_type"];
-}
-
-export interface PreferenceDeleteCommand {
-  preferenceId: UserPreferenceRow["id"];
 }
 
 // -----------------------------------------------------------------------------

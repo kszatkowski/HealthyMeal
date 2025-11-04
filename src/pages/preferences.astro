@@ -1,0 +1,19 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { PreferenceFormView } from "@/components/views/PreferenceFormView/PreferenceFormView";
+---
+
+<Layout>
+  <main class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="space-y-6">
+      <div class="space-y-2">
+        <h1 class="text-3xl font-bold tracking-tight text-foreground">Preferencje żywieniowe</h1>
+        <p class="text-lg text-muted-foreground">
+          Zdefiniuj swoje preferencje, aby otrzymywać lepiej dopasowane przepisy.
+        </p>
+      </div>
+
+      <PreferenceFormView client:load />
+    </div>
+  </main>
+</Layout>

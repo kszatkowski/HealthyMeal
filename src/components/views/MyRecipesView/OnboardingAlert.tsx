@@ -49,7 +49,7 @@ export function OnboardingAlert({ show, onDismiss, className }: OnboardingAlertP
         </AlertDescription>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button asChild size="sm" className="sm:w-auto">
-            <a href="/profile/preferences">Uzupełnij profil</a>
+            <a href="/preferences">Uzupełnij profil</a>
           </Button>
           <Button
             type="button"

@@ -9,7 +9,7 @@
         -   *Ścieżka sukcesu:* Po pomyślnej weryfikacji, użytkownik jest logowany i przekierowywany na stronę główną.
         -   *Ścieżka błędu:* W przypadku podania błędnych danych, wyświetlany jest komunikat o nieprawidłowym loginie lub haśle.
     -   **Zalogowany użytkownik:** Po zalogowaniu użytkownik ma pełen dostęp do funkcji aplikacji.
-        -   *Onboarding:* Jeśli jest to nowy użytkownik, który nie uzupełnił swoich preferencji, widzi powiadomienie zachęcające do ich wypełnienia.
+        -   *Onboarding:* Jeśli jest to nowy użytkownik, który nie uzupełnił pól tekstowych "Nie lubię" i "Alergeny", widzi powiadomienie zachęcające do ich wypełnienia.
         -   *Nawigacja:* Użytkownik ma dostęp do nawigacji pozwalającej zarządzać preferencjami lub się wylogować.
         -   *Wylogowanie:* Użytkownik klika przycisk "Wyloguj", jego sesja jest kończona, a on sam jest przekierowywany na stronę logowania.
 
@@ -24,7 +24,7 @@
     -   Czy dane w formularzu rejestracji są poprawne? (Tak/Nie)
     -   Czy użytkownik o podanym e-mailu już istnieje? (Tak/Nie)
     -   Czy dane w formularzu logowania są poprawne? (Tak/Nie)
-    -   Czy zalogowany użytkownik ma uzupełnione preferencje? (Tak/Nie)
+    -   Czy zalogowany użytkownik ma uzupełnione preferencje tekstowe? (Tak/Nie)
 
 4.  **Krótki opis celu każdego stanu:**
     -   `StronaPowitalna`: Punkt wejścia do aplikacji dla niezalogowanego użytkownika, kierujący do logowania lub rejestracji.
@@ -80,8 +80,8 @@ stateDiagram-v2
 
         state if_onboarding <<choice>>
         PanelUzytkownika --> if_onboarding
-        if_onboarding --> WyswietlenieOnboardingu: Preferencje nieuzupełnione
-        if_onboarding --> DalszeKorzystanie: Preferencje uzupełnione
+        if_onboarding --> WyswietlenieOnboardingu: Preferencje tekstowe nieuzupełnione
+        if_onboarding --> DalszeKorzystanie: Preferencje tekstowe uzupełnione
         WyswietlenieOnboardingu --> DalszeKorzystanie
         
         DalszeKorzystanie --> Wylogowanie: Kliknięcie "Wyloguj"

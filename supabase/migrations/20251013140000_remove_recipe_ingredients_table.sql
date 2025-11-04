@@ -67,3 +67,15 @@ comment on column recipes.ingredients is 'Ingredients for the recipe stored as t
 -- where exists (
 --   select 1 from recipe_ingredients where recipe_id = recipes.id
 -- );
+-- ============================================================================
+-- SECTION 6: ADD PREFERENCE NOTE COLUMNS TO PROFILES
+-- ============================================================================
+
+-- Add preference note columns to the profiles table
+alter table profiles
+add column disliked_ingredients_note varchar(200),
+add column allergens_note varchar(200);
+
+-- Update comments to reflect new columns
+comment on column profiles.disliked_ingredients_note is 'User-defined list of disliked ingredients (free text), max 200 characters';
+comment on column profiles.allergens_note is 'User-defined list of allergens (free text), max 200 characters';

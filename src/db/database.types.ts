@@ -20,42 +20,30 @@ export interface Database {
   };
   public: {
     Tables: {
-      products: {
-        Row: {
-          created_at: string;
-          id: string;
-          name: string;
-        };
-        Insert: {
-          created_at?: string;
-          id?: string;
-          name: string;
-        };
-        Update: {
-          created_at?: string;
-          id?: string;
-          name?: string;
-        };
-        Relationships: [];
-      };
       profiles: {
         Row: {
           ai_requests_count: number;
+          allergens_note: string | null;
           created_at: string;
+          disliked_ingredients_note: string | null;
           id: string;
           onboarding_notification_hidden_until: string | null;
           updated_at: string;
         };
         Insert: {
           ai_requests_count?: number;
+          allergens_note?: string | null;
           created_at?: string;
+          disliked_ingredients_note?: string | null;
           id: string;
           onboarding_notification_hidden_until?: string | null;
           updated_at?: string;
         };
         Update: {
           ai_requests_count?: number;
+          allergens_note?: string | null;
           created_at?: string;
+          disliked_ingredients_note?: string | null;
           id?: string;
           onboarding_notification_hidden_until?: string | null;
           updated_at?: string;
@@ -139,38 +127,6 @@ export interface Database {
           user_id?: string;
         };
         Relationships: [];
-      };
-      user_preferences: {
-        Row: {
-          created_at: string;
-          id: string;
-          preference_type: Database["public"]["Enums"]["preference_type"];
-          product_id: string;
-          user_id: string;
-        };
-        Insert: {
-          created_at?: string;
-          id?: string;
-          preference_type: Database["public"]["Enums"]["preference_type"];
-          product_id: string;
-          user_id: string;
-        };
-        Update: {
-          created_at?: string;
-          id?: string;
-          preference_type?: Database["public"]["Enums"]["preference_type"];
-          product_id?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "user_preferences_product_id_fkey";
-            columns: ["product_id"];
-            isOneToOne: false;
-            referencedRelation: "products";
-            referencedColumns: ["id"];
-          },
-        ];
       };
     };
     Views: Record<never, never>;

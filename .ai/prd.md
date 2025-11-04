@@ -13,15 +13,13 @@ Użytkownicy, którzy chcą świadomie zarządzać swoją dietą, napotykają na
 
 ## 3. Wymagania funkcjonalne
 - FR-01: System Kont: Użytkownicy mogą zakładać konto, logować się i wylogowywać przy użyciu adresu e-mail i hasła.
-- FR-02: Profil Preferencji: Użytkownik ma możliwość zdefiniowania swoich preferencji w trzech kategoriach: "lubię", "nie lubię" oraz "alergeny".
-- FR-03: Baza Produktów: Preferencje są wybierane z predefiniowanej bazy danych produktów z funkcją autouzupełniania, aby zapewnić spójność danych.
-- FR-04: Walidacja Preferencji: System automatycznie weryfikuje spójność preferencji, uniemożliwiając dodanie tego samego produktu do wykluczających się list (np. "lubię" i "alergeny"). Alergeny mają najwyższy priorytet.
-- FR-05: Generator AI: Dostępny jest formularz do generowania przepisów, który uwzględnia preferencje użytkownika. Formularz zawiera wymagane pole "rodzaj posiłku" oraz opcjonalne pola "główny składnik" i "poziom trudności".
-- FR-06: Limit Zapytań AI: Każdy użytkownik ma dzienny limit 3 zapytań do generatora AI. Limit jest resetowany o północy.
-- FR-07: Zarządzanie Przepisami (CRUD): Użytkownicy mogą tworzyć własne przepisy, zapisywać propozycje od AI, edytować wszystkie swoje przepisy oraz je usuwać.
-- FR-08: Ustrukturyzowany Edytor: Edytor przepisów posiada oddzielne pola na składniki, ich ilości oraz instrukcje przygotowania w formie tekstowej.
-- FR-09: Kategoryzacja: Wszystkie przepisy (własne i AI) są automatycznie kategoryzowane według "rodzaju posiłku" w celu ułatwienia przeglądania.
-- FR-10: Onboarding: Nowi użytkownicy, którzy nie uzupełnili profilu preferencji, otrzymują nieinwazyjne powiadomienie z zachętą do jego wypełnienia. Powiadomienie można tymczasowo ukryć na 2 dni.
+- FR-02: Profil Preferencji: Użytkownik ma możliwość wpisania swoich preferencji w dwóch polach tekstowych ("nie lubię" oraz "alergeny"), po maksymalnie 200 znaków każde.
+- FR-03: Generator AI: Dostępny jest formularz do generowania przepisów, który uwzględnia preferencje użytkownika. Formularz zawiera wymagane pole "rodzaj posiłku" oraz opcjonalne pola "główny składnik" i "poziom trudności".
+- FR-04: Limit Zapytań AI: Każdy użytkownik ma dzienny limit 3 zapytań do generatora AI. Limit jest resetowany o północy.
+- FR-05: Zarządzanie Przepisami (CRUD): Użytkownicy mogą tworzyć własne przepisy, zapisywać propozycje od AI, edytować wszystkie swoje przepisy oraz je usuwać.
+- FR-06: Ustrukturyzowany Edytor: Edytor przepisów posiada oddzielne pola na składniki, ich ilości oraz instrukcje przygotowania w formie tekstowej.
+- FR-07: Kategoryzacja: Wszystkie przepisy (własne i AI) są automatycznie kategoryzowane według "rodzaju posiłku" w celu ułatwienia przeglądania.
+- FR-08: Onboarding: Nowi użytkownicy, którzy nie uzupełnili profilu preferencji, otrzymują nieinwazyjne powiadomienie z zachętą do jego wypełnienia. Powiadomienie można tymczasowo ukryć na 2 dni.
 
 ## 4. Granice produktu
 Poniższe funkcjonalności nie wchodzą w zakres wersji MVP i mogą być rozważane w przyszłych iteracjach produktu:
@@ -54,19 +52,18 @@ Poniższe funkcjonalności nie wchodzą w zakres wersji MVP i mogą być rozważ
 
 - ID: US-003
 - Tytuł: Zarządzanie preferencjami żywieniowymi
-- Opis: Jako użytkownik, chcę móc zdefiniować w moim profilu, które produkty lubię, których nie lubię, oraz które wywołują u mnie alergie, aby otrzymywać przepisy idealnie dopasowane do moich potrzeb.
+- Opis: Jako użytkownik, chcę móc zdefiniować w moim profilu, których produktów nie lubię, oraz które wywołują u mnie alergie, aby otrzymywać przepisy idealnie dopasowane do moich potrzeb.
 - Kryteria akceptacji:
-  1. W profilu użytkownika dostępne są trzy sekcje: "lubię", "nie lubię", "alergeny".
-  2. Dodawanie produktów odbywa się poprzez pole tekstowe z autouzupełnianiem z predefiniowanej bazy danych.
-  3. Każda kategoria ma limit 30 produktów. Po osiągnięciu limitu dodanie kolejnego jest niemożliwe.
-  4. Użytkownik może w każdej chwili usunąć produkt z dowolnej listy.
-  5. System uniemożliwia dodanie tego samego produktu do sprzecznych list (np. "lubię" i "alergeny"), informując użytkownika o konflikcie. W przypadku konfliktu, priorytet ma lista "alergeny".
+  1. W profilu użytkownika dostępne są dwie sekcje: "nie lubię" oraz "alergeny".
+  2. Każda sekcja zawiera jedno pole tekstowe (pojedyncza linia lub textarea) do wpisania preferencji.
+  3. Długość tekstu w każdym polu jest ograniczona do 200 znaków.
+  4. System nie korzysta z predefiniowanej bazy produktów; użytkownik wpisuje własne nazwy składników.
 
 - ID: US-004
 - Tytuł: Onboarding i zachęta do uzupełnienia profilu
 - Opis: Jako nowy użytkownik z nieuzupełnionym profilem, chcę otrzymywać dyskretne przypomnienie o konieczności wypełnienia preferencji, aby w pełni korzystać z możliwości personalizacji aplikacji.
 - Kryteria akceptacji:
-  1. Jeśli użytkownik nie uzupełnił list "lubię" i "nie lubię", na stronie głównej wyświetlane jest powiadomienie.
+  1. Jeśli użytkownik nie uzupełnił pól "nie lubię" oraz "alergeny", na stronie głównej wyświetlane jest powiadomienie.
   2. Powiadomienie zawiera przycisk przenoszący do edycji profilu oraz opcję "Przypomnij mi później".
   3. Wybranie opcji "Przypomnij mi później" ukrywa powiadomienie na 2 dni.
 
@@ -75,7 +72,7 @@ Poniższe funkcjonalności nie wchodzą w zakres wersji MVP i mogą być rozważ
 - Opis: Jako użytkownik, chcę móc wygenerować nowy przepis za pomocą AI, podając rodzaj posiłku, aby szybko znaleźć inspirację kulinarną zgodną z moimi preferencjami.
 - Kryteria akceptacji:
   1. Formularz generowania zawiera pole wyboru "rodzaj posiłku" (wymagane) oraz opcjonalne pola tekstowe "główny składnik" i "poziom trudności".
-  2. Wygenerowany przepis jest zgodny z preferencjami ("lubię", "nie lubię", "alergeny") zdefiniowanymi w profilu użytkownika.
+  2. Wygenerowany przepis jest zgodny z preferencjami ("nie lubię", "alergeny") zdefiniowanymi w profilu użytkownika.
   3. Użytkownik może wygenerować maksymalnie 3 przepisy dziennie. Próba czwartego generowania skutkuje wyświetleniem komunikatu o limicie.
   4. Po wygenerowaniu przepisu, użytkownik widzi jego pełną treść (składniki, ilości, instrukcje) i ma możliwość jego edycji lub zapisania.
 
@@ -125,5 +122,5 @@ Poniższe funkcjonalności nie wchodzą w zakres wersji MVP i mogą być rozważ
 
 ## 6. Metryki sukcesu
 Kluczowe wskaźniki efektywności (KPI), które będą mierzyć sukces produktu w wersji MVP, to:
-- Zaangażowanie w personalizację: 90% zarejestrowanych użytkowników posiada wypełnione obie obowiązkowe kategorie w profilu preferencji ("lubię" i "nie lubię").
+- Zaangażowanie w personalizację: 90% zarejestrowanych użytkowników posiada wypełnione obie obowiązkowe kategorie w profilu preferencji ("nie lubię" oraz "alergeny").
 - Regularne korzystanie z kluczowej funkcji: 75% aktywnych użytkowników generuje co najmniej jeden przepis za pomocą modułu AI w ciągu tygodnia.

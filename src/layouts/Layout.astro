@@ -2,6 +2,7 @@
 import "../styles/global.css";
 
 import { Navbar } from "@/components/layout/Navbar";
+import { Toaster } from "@/components/ui/sonner";
 
 interface Props {
   title?: string;
@@ -25,6 +26,8 @@ const { title = "HealthyMeal" } = Astro.props;
     <main class="flex min-h-screen flex-col container mx-auto">
       <slot />
     </main>
+
+    <Toaster client:load richColors closeButton position="top-center" />
   </body>
 </html>
 
