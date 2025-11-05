@@ -1,8 +1,10 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import type { RecipeRow } from "@/db/database.types";
+import type { Database } from "@/db/database.types";
 
-const MEAL_TYPE_LABELS: Record<RecipeRow["meal_type"], string> = {
+type MealType = Database["public"]["Enums"]["meal_type"];
+
+const MEAL_TYPE_LABELS: Record<MealType, string> = {
   breakfast: "Śniadanie",
   lunch: "Lunch",
   dinner: "Obiad",
@@ -11,8 +13,8 @@ const MEAL_TYPE_LABELS: Record<RecipeRow["meal_type"], string> = {
 };
 
 interface MealTypeTabsProps {
-  currentValue: RecipeRow["meal_type"] | "all";
-  onValueChange: (value: RecipeRow["meal_type"] | "all") => void;
+  currentValue: MealType | "all";
+  onValueChange: (value: MealType | "all") => void;
   className?: string;
 }
 
@@ -21,9 +23,9 @@ export function MealTypeTabs({ currentValue, onValueChange, className }: MealTyp
     <Tabs
       value={currentValue}
       onValueChange={(value) => onValueChange(value as MealTypeTabsProps["currentValue"])}
-      className={cn("w-full", className)}
+      className={cn("w-full h-full", className)}
     >
-      <TabsList className="grid grid-cols-2 gap-2 bg-transparent p-0 sm:flex sm:flex-wrap sm:justify-start">
+      <TabsList className="grid grid-cols-2 gap-2 bg-transparent p-0 sm:flex sm:flex-wrap sm:justify-start h-full">
         <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
           Wszystkie
         </TabsTrigger>
