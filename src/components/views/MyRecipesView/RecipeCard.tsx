@@ -105,7 +105,6 @@ export function RecipeCard({ recipe, onDelete }: RecipeCardProps) {
             <p>Ostatnia aktualizacja: {updatedLabel}</p>
           </CardContent>
           <CardFooter className="justify-between text-xs text-muted-foreground">
-            <span>ID: {recipe.id}</span>
             <span>Utworzono: {formatRelative(new Date(recipe.createdAt), new Date(), { locale: pl })}</span>
           </CardFooter>
         </a>

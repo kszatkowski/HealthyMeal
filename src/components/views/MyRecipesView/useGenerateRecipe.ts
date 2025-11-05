@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import type { GenerateRecipeFormViewModel } from "./schema";
 import type { RecipeUpdateCommand } from "@/types";
+import { useProfile } from "./useProfile";
 
 interface UseGenerateRecipeResult {
   isGenerating: boolean;
@@ -20,24 +21,38 @@ export function useGenerateRecipe(): UseGenerateRecipeResult {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { profile } = useProfile();
+
+  // Extract preferences into constants
+  const dislikedIngredients = useMemo(() => {
+    return profile?.dislikedIngredientsNote ? profile.dislikedIngredientsNote.trim() : "";
+  }, [profile?.dislikedIngredientsNote]);
+
+  const allergens = useMemo(() => {
+    return profile?.allergensNote ? profile.allergensNote.trim() : "";
+  }, [profile?.allergensNote]);
+
   /**
    * Constructs a natural language prompt from the form data.
    * Example: "Create an easy breakfast recipe, with chicken as main ingredient."
    */
-  const buildPrompt = useCallback((data: GenerateRecipeFormViewModel): string => {
-    const difficulty = data.difficulty ?? "any";
-    const mainIngredient = data.mainIngredient?.trim() ? data.mainIngredient : "any main ingredient";
+  const buildPrompt = useCallback(
+    (data: GenerateRecipeFormViewModel): string => {
+      const difficulty = data.difficulty ?? "";
+      const mainIngredient = data.mainIngredient?.trim() ? data.mainIngredient : "";
 
-    return `Jesteś doświadczonym kucharzem. Twoim zadaniem jest stworzenie przepisu na ${data.mealType}.
-Zwróć uwagę, aby w przepisie nie było składników których nie lubię, a są to: oliwki.
-Pamiętaj aby stworzony przez ciebie przepis nie zawierał alergenów: nabiał.
-Głównym składnikiem przepisu powinien być: ${mainIngredient}.
-Stopień trudności przepisu powinien być na poziomie ${difficulty}.
+      return `Jesteś doświadczonym kucharzem. Twoim zadaniem jest stworzenie przepisu na ${data.mealType}.
+${dislikedIngredients ? "Zwróć uwagę, aby w przepisie nie było składników których nie lubię, a są to: " + dislikedIngredients : ""}
+${allergens ? "Pamiętaj aby stworzony przez ciebie przepis nie zawierał alergenów: " + allergens : ""}
+${mainIngredient ? "Głównym składnikiem przepisu powinien być: " + mainIngredient : ""}
+${difficulty ? "Stopień trudności przepisu powinien być na poziomie " + difficulty : ""}
 Wygeneruj przepis zawierający instrukcję do 5000 znaków.
 Składniki powinny być w formacie: nazwa_składnika ilosc jednostka np. Mleko 1 szklanka. Pamiętaj aby po każdym składniku był znak nowej linii.
 Typ posiłku musi być jednym z: breakfast, lunch, dinner, dessert, snack.
 Poziom trudności musi być jednym z: easy, medium, hard.`;
-  }, []);
+    },
+    [dislikedIngredients, allergens]
+  );
 
   /**
    * Generates a recipe by calling the API and managing the generation process.

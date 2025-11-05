@@ -43,6 +43,7 @@ Hierarchia komponentów React, które zostaną osadzone na stronie Astro (`src/p
 - **Główne elementy:** `Alert`, `AlertTitle`, `AlertDescription`, `Button`.
 - **Obsługiwane interakcje:** Kliknięcie przycisku "Uzupełnij profil" (nawigacja) lub "Przypomnij później" (wysłanie żądania do API w celu ukrycia powiadomienia).
 - **Obsługiwana walidacja:** Brak.
+- **Logika wyświetlania:** Alert jest widoczny, gdy `dislikedIngredientsNote` i `allergensNote` z `/api/profile` są puste (po trimie) oraz `onboardingNotificationHiddenUntil` jest `null` lub wcześniejsze niż `now()`.
 - **Typy:** Brak.
 - **Propsy:**
   ```typescript
@@ -164,6 +165,10 @@ Komponent `MyRecipesView` będzie komunikował się z API za pośrednictwem hook
   - **Wywołanie:** Przy pierwszym renderowaniu komponentu oraz przy każdej zmianie w `filters` (zmiana zakładki, strony paginacji itp.).
   - **Typy żądania (Query Params):** Parametry zapytania będą budowane na podstawie obiektu `RecipeFiltersViewModel`. Wartość `page` zostanie przeliczona na `offset` (`offset = (page - 1) * limit`).
   - **Typy odpowiedzi:** `RecipeListResponseDto`.
+- **`GET /api/profile`**
+  - **Wywołanie:** Równolegle z pierwszym pobraniem listy przepisów, aby uzyskać notatki preferencji i stan ukrycia onboardingu.
+  - **Typy odpowiedzi:** `ProfileResponseDto` (jak w planie API).
+  - **Obsługa:** Hook `useRecipes` może zwracać dodatkową flagę `showOnboarding`, lub można utworzyć dedykowany hook `useOnboardingNotice` korzystający z tego samego endpointu.
 
 - **`DELETE /api/recipes/{recipeId}`** (Przyjęte założenie co do ścieżki)
   - **Wywołanie:** Po potwierdzeniu przez użytkownika w oknie dialogowym.

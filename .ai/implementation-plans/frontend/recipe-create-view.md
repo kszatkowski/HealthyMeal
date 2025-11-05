@@ -1,153 +1,99 @@
-# Plan implementacji widoku Formularza Przepisu
+# Plan implementacji widoku Formularza Przepisu (tekstowe składniki)
+
+Zmiana wymagań usuwa zależność od predefiniowanej bazy produktów. Widok tworzenia przepisu powinien zatem korzystać z prostego pola tekstowego na składniki. Dokument opisuje aktualny plan implementacji zgodny z nowym modelem danych.
 
 ## 1. Przegląd
-Widok Formularza Przepisu umożliwia użytkownikom tworzenie nowych, własnych przepisów kulinarnych. Składa się z formularza zawierającego pola na podstawowe informacje o przepisie, takie jak nazwa, rodzaj posiłku i poziom trudności, a także edytor do dynamicznego zarządzania listą składników oraz pole tekstowe na instrukcje przygotowania. Po pomyślnym zapisaniu formularza użytkownik jest przekierowywany do listy swoich przepisów.
 
-## 2. Routing widoku
-- **Tworzenie nowego przepisu:** `/recipes/new`
-- **Edycja istniejącego przepisu:** `/recipes/[id]/edit` (poza zakresem tego planu)
+Widok umożliwia stworzenie nowego przepisu lub edycję wstępnie wygenerowanego przepisu AI. Formularz zawiera pola: nazwa, rodzaj posiłku, poziom trudności, składniki (textarea), instrukcje (textarea) oraz przełącznik `isAiGenerated` (ukryty / kontrolowany przez logikę). Po zapisaniu użytkownik wraca do listy przepisów.
 
-Strona zostanie zaimplementowana w pliku `src/pages/recipes/new.astro`.
+## 2. Routing
+
+- **Nowy przepis**: `/recipes/new`
+- **Edycja istniejącego**: `/recipes/[id]/edit` (reused formularz)
+- Strona Astro: `src/pages/recipes/new.astro` osadzająca komponent React `RecipeForm` z dyrektywą `client:load`.
 
 ## 3. Struktura komponentów
-Hierarchia komponentów dla tego widoku będzie następująca:
 
 ```
-- RecipeFormView.astro
-  - Layout.astro
-    - Navbar.tsx
-    - RecipeForm.tsx (client:load)
-      - Form (z biblioteki react-hook-form)
-        - Input (dla nazwy przepisu)
-        - Select (dla rodzaju posiłku)
-        - Select (dla poziomu trudności)
-        - Textarea (dla instrukcji)
-        - IngredientsEditor.tsx
-          - [Pętla po składnikach]
-            - ProductSearchInput.tsx
-            - Input (dla ilości)
-            - Select (dla jednostki)
-            - Button (do usunięcia składnika)
-          - Button (do dodania nowego składnika)
-        - Button (do zapisu formularza)
+recipes/new.astro
+└── Layout.astro
+    └── RecipeForm (client:load)
+        ├── Input (nazwa)
+        ├── Select (rodzaj posiłku)
+        ├── Select (poziom trudności)
+        ├── Textarea (składniki)
+        ├── Textarea (instrukcje)
+        └── Button (zapisz)
 ```
 
-## 4. Szczegóły komponentów
+## 4. Komponent `RecipeForm`
 
-### `RecipeForm.tsx`
-- **Opis komponentu:** Główny komponent React, który zarządza całym stanem formularza. Wykorzystuje bibliotekę `react-hook-form` do obsługi pól, walidacji i procesu zapisu. Renderuje wszystkie elementy UI formularza i orkiestruje komunikację z API.
-- **Główne elementy:** Komponent `<form>` opakowujący komponenty `Input`, `Select`, `Textarea` i `Button` z `shadcn/ui`, a także niestandardowy komponent `IngredientsEditor`.
-- **Obsługiwane interakcje:**
-  - Wprowadzanie danych w polach formularza.
-  - Zapisanie formularza.
-- **Obsługiwana walidacja:**
-  - Walidacja wszystkich pól formularza zgodnie ze schematem zdefiniowanym w sekcji 9.
-- **Typy:** `RecipeFormViewModel`, `RecipeCreateCommand`.
-- **Propsy:** Brak.
+- **Lokalizacja**: `src/components/views/RecipeFormView/RecipeForm.tsx`
+- **Biblioteki**: `react-hook-form`, `zod`, komponenty `shadcn/ui` (`Input`, `Select`, `Textarea`, `Button`, `Form`, `FormField`, `FormMessage`).
+- **Stany specjalne**:
+  - `isSubmitting` (disable przycisk, pokaż spinner w przycisku)
+  - `isPrefilledFromAI` (opcjonalny banner informujący użytkownika)
+- **Obsługa AI**: jeżeli w `sessionStorage` pod kluczem `ai-generated-recipe` znajdują się dane, użyj `form.reset` i oznacz formularz jako prefill.
 
-### `IngredientsEditor.tsx`
-- **Opis komponentu:** Komponent do dynamicznego zarządzania listą składników. Umożliwia dodawanie, usuwanie i edycję poszczególnych wierszy składników. Jest kontrolowany przez `RecipeForm` za pomocą hooka `useFieldArray` z `react-hook-form`.
-- **Główne elementy:** Lista wierszy składników, przycisk "Dodaj składnik". Każdy wiersz zawiera `ProductSearchInput`, `Input` (ilość), `Select` (jednostka) i `Button` (usuń).
-- **Obsługiwane interakcje:**
-  - `onAddIngredient`: Dodaje nowy, pusty wiersz do listy składników.
-  - `onRemoveIngredient(index)`: Usuwa wiersz o podanym indeksie.
-  - `onUpdateIngredient(index, data)`: Aktualizuje dane w wierszu o podanym indeksie.
-- **Obsługiwana walidacja:**
-  - Minimalna liczba składników: 1.
-  - Maksymalna liczba składników: 50.
-- **Typy:** `RecipeCommandIngredient[]`.
-- **Propsy:** `control`, `register`, `errors` (przekazane z `react-hook-form`).
+## 5. Schemat walidacji
 
-### `ProductSearchInput.tsx`
-- **Opis komponentu:** Komponent typu "Combobox" lub "Autocomplete" do wyszukiwania i wybierania produktów z bazy danych. Będzie on wysyłał zapytania do API w miarę wpisywania tekstu przez użytkownika i wyświetlał pasujące wyniki.
-- **Główne elementy:** `Input` zintegrowany z listą rozwijaną wyników wyszukiwania.
-- **Obsługiwane interakcje:**
-  - Wpisywanie tekstu w celu wyszukania produktu.
-  - Wybór produktu z listy wyników.
-- **Obsługiwana walidacja:**
-  - Wymaga wyboru poprawnego produktu z listy.
-- **Typy:** `ProductListItemDto`.
-- **Propsy:** `value`, `onChange`.
-
-## 5. Typy
-
-### `RecipeFormViewModel`
-Model widoku używany przez `react-hook-form` do zarządzania stanem formularza. Jest to rozszerzona wersja `RecipeCreateCommand` o pole `productName` dla celów wyświetlania w UI.
-
-```typescript
-import { z } from "zod";
-
+```ts
 const recipeFormSchema = z.object({
-  name: z.string().min(1, "Nazwa jest wymagana").max(50, "Nazwa nie może przekraczać 50 znaków"),
-  mealType: z.enum(["breakfast", "lunch", "dinner", "dessert", "snack"]),
-  difficulty: z.enum(["easy", "medium", "hard"]),
-  instructions: z.string().min(1, "Instrukcje są wymagane").max(5000, "Instrukcje nie mogą przekraczać 5000 znaków"),
-  ingredients: z.array(z.object({
-    productId: z.string().uuid("Nieprawidłowy produkt"),
-    // Pole używane tylko w UI do wyświetlania nazwy, usuwane przed wysłaniem do API
-    productName: z.string().min(1, "Nazwa produktu jest wymagana"),
-    amount: z.coerce.number().positive("Ilość musi być większa od zera"),
-    unit: z.enum(["gram", "kilogram", "milliliter", "liter", "teaspoon", "tablespoon", "cup", "piece"]),
-  })).min(1, "Należy dodać co najmniej jeden składnik").max(50, "Liczba składników nie może przekraczać 50"),
+  name: z.string().min(1, 'Nazwa jest wymagana').max(50),
+  mealType: z.enum(['breakfast', 'lunch', 'dinner', 'dessert', 'snack']),
+  difficulty: z.enum(['easy', 'medium', 'hard']),
+  ingredients: z
+    .string()
+    .min(1, 'Lista składników jest wymagana')
+    .max(1000, 'Lista składników może mieć maksymalnie 1000 znaków'),
+  instructions: z
+    .string()
+    .min(1, 'Instrukcje są wymagane')
+    .max(5000, 'Instrukcje mogą mieć maksymalnie 5000 znaków'),
+  isAiGenerated: z.boolean().default(false),
 });
 
 type RecipeFormViewModel = z.infer<typeof recipeFormSchema>;
 ```
 
-## 6. Zarządzanie stanem
-Stan formularza będzie w całości zarządzany przez bibliotekę `react-hook-form`.
+- Walidacja odbywa się po stronie klienta (Zod + `@hookform/resolvers/zod`) oraz jest zgodna z API.
+- Dodaj pomocniczy formatter, który zapewni, że każda linia składników ma format `Nazwa - ilość jednostka` (opcjonalny placeholder zamiast hard walidacji).
 
-- **Hook `useForm`**: Zostanie użyty w komponencie `RecipeForm` do inicjalizacji formularza, rejestracji pól i obsługi procesu zapisu.
-  - `resolver`: Zostanie skonfigurowany z `@hookform/resolvers/zod`, aby automatycznie walidować formularz na podstawie zdefiniowanego `recipeFormSchema`.
-- **Hook `useFieldArray`**: Zostanie użyty wewnątrz `RecipeForm` do zarządzania dynamiczną listą składników. Udostępni on metody `fields`, `append` i `remove`, które zostaną przekazane do komponentu `IngredientsEditor`.
-- **Niestandardowy hook `useRecipeForm`**: Opcjonalnie można stworzyć ten hook, aby zamknąć w nim całą logikę związaną z `useForm`, `useFieldArray` oraz funkcją `onSubmit` wysyłającą dane do API.
+## 6. Obsługa zdarzeń
 
-## 7. Integracja API
+- `onSubmit`:
+  1. Waliduj dane (`handleSubmit`).
+  2. Wysyłaj `POST /api/recipes` z `RecipeCreateCommand` (zawiera `ingredients` jako tekst).
+  3. Po sukcesie: pokaż toast `sonner`, wyczyść `sessionStorage`, nawiguj do `/`.
+  4. Po błędzie: wyświetl toast z treścią błędu, zresetuj `isSubmitting`.
+- `useEffect` inicjalizujący formularz danymi z AI (jak w poprzednim planie).
 
-### Wyszukiwanie produktów (nowy endpoint)
-- **Endpoint:** `GET /api/products?search={query}`
-- **Opis:** Ten endpoint (który musi zostać stworzony) będzie używany przez komponent `ProductSearchInput` do pobierania listy produktów pasujących do zapytania użytkownika.
-- **Typ odpowiedzi:** `ProductListResponseDto`.
+## 7. UI/UX
 
-### Tworzenie przepisu
-- **Endpoint:** `POST /api/recipes`
-- **Opis:** Główny punkt końcowy do zapisu nowego przepisu.
-- **Typ żądania (`body`):** `RecipeCreateCommand`. Przed wysłaniem, dane z `RecipeFormViewModel` muszą zostać przekształcone poprzez usunięcie pola `productName` z każdego składnika.
-- **Typ odpowiedzi (sukces `201`):** `RecipeResponseDto`.
-- **Obsługa:** Po otrzymaniu odpowiedzi `201 Created`, aplikacja powinna wyświetlić powiadomienie "toast" o sukcesie i przekierować użytkownika na stronę główną (listę przepisów). W przypadku błędu, należy wyświetlić generyczny komunikat o błędzie.
+- Dla pól `ingredients` i `instructions` pokaż liczniki znaków (`value.length / limit`).
+- Placeholder składników (np. `"Jajka - 2 szt\nMasło - 20 g"`).
+- Zadbaj o responsywne rozmieszczenie pól (w mobilnym widoku wszystkie elementy w jednej kolumnie).
+- Komunikaty błędów poniżej pól `Textarea`.
 
-## 8. Interakcje użytkownika
-- **Wypełnianie formularza:** Użytkownik wpisuje dane w pola tekstowe i wybiera opcje z list rozwijanych. Stan jest na bieżąco aktualizowany przez `react-hook-form`.
-- **Dodawanie składnika:** Użytkownik klika przycisk "Dodaj składnik", co powoduje dodanie nowego, pustego wiersza w `IngredientsEditor`.
-- **Usuwanie składnika:** Użytkownik klika ikonę kosza obok składnika, co natychmiast usuwa go z formularza.
-- **Wybór produktu:** Użytkownik wpisuje nazwę produktu w `ProductSearchInput`, wybiera pozycję z listy, co aktualizuje `productId` i `productName` dla danego składnika.
-- **Zapis:** Użytkownik klika "Zapisz przepis". Jeśli formularz jest poprawny, dane są wysyłane do API. W trakcie wysyłania przycisk jest nieaktywny.
+## 8. Integracja API
 
-## 9. Warunki i walidacja
-Walidacja będzie realizowana po stronie klienta za pomocą Zod, odzwierciedlając reguły zaimplementowane na backendzie.
-- **`name`**: Wymagane, max. 50 znaków.
-- **`mealType`**: Wymagane, musi być jedną z predefiniowanych wartości.
-- **`difficulty`**: Wymagane, musi być jedną z predefiniowanych wartości.
-- **`instructions`**: Wymagane, max. 5000 znaków.
-- **`ingredients`**: Wymagana jest co najmniej 1 pozycja i maksymalnie 50.
-- **`ingredient.product`**: Wymagany wybór z listy.
-- **`ingredient.amount`**: Wymagane, musi być liczbą dodatnią.
-- **`ingredient.unit`**: Wymagane.
+- **POST `/api/recipes`** – payload zgodny z `RecipeCreateCommand` (już tekstowe składniki).
+- **PUT `/api/recipes/[id]`** – reużywa tego samego ViewModelu podczas edycji.
+- Ustaw `Content-Type: application/json`, korzystaj z `fetch` (lub dedykowanego klienta API jeśli istnieje).
 
-Komunikaty o błędach będą wyświetlane pod odpowiednimi polami formularza, gdy reguły walidacji nie zostaną spełnione.
+## 9. Testy
 
-## 10. Obsługa błędów
-- **Błędy walidacji:** Obsługiwane automatycznie przez `react-hook-form` i `zodResolver`. Użytkownik zobaczy komunikaty inline, a formularz nie zostanie wysłany.
-- **Błędy API (np. `4xx`, `5xx`):** W bloku `catch` funkcji `onSubmit`, zostanie wyświetlone powiadomienie "toast" (np. za pomocą `sonner`) z ogólnym komunikatem, np. "Wystąpił błąd podczas zapisywania przepisu. Spróbuj ponownie.". Szczegółowe informacje o błędzie zostaną zalogowane w konsoli deweloperskiej.
-- **Błędy sieciowe:** Traktowane tak samo jak błędy API. Przycisk zapisu zostanie ponownie aktywowany, aby umożliwić ponowną próbę.
+- **Unit**: testy `RecipeForm` przy użyciu React Testing Library – happy path, walidacja limitów znaków, obsługa błędów.
+- **Integration**: testy serwisu/form hooków, verifying transform `RecipeFormViewModel → RecipeCreateCommand`.
+- **E2E (Playwright)**: scenariusz dodania przepisu z tekstową listą składników oraz scenariusz walidacji (np. zbyt długie pole `ingredients`).
 
-## 11. Kroki implementacji
-1.  **Stworzenie strony Astro:** Utworzenie pliku `src/pages/recipes/new.astro`, który będzie renderował główny layout i osadzał komponent React.
-2.  **Utworzenie komponentu `RecipeForm`:** Stworzenie pliku `src/components/views/RecipeFormView/RecipeForm.tsx` z podstawową strukturą formularza przy użyciu komponentów `shadcn/ui` i `react-hook-form`.
-3.  **Implementacja schematu walidacji:** Zdefiniowanie `recipeFormSchema` przy użyciu Zod w pliku z komponentem `RecipeForm`.
-4.  **Stworzenie komponentu `IngredientsEditor`:** Utworzenie pliku `src/components/views/RecipeFormView/IngredientsEditor.tsx` i zintegrowanie go z `RecipeForm` za pomocą `useFieldArray`.
-5.  **Stworzenie komponentu `ProductSearchInput`:** Utworzenie pliku `src/components/views/RecipeFormView/ProductSearchInput.tsx` (zakładając, że istnieje API do wyszukiwania produktów).
-6.  **Implementacja logiki zapisu:** Dodanie funkcji `onSubmit` w `RecipeForm`, która będzie transformować dane z ViewModel na DTO, wysyłać żądanie `POST /api/recipes` i obsługiwać odpowiedź.
-7.  **Obsługa przekierowania i powiadomień:** Zintegrowanie z `sonner` do wyświetlania powiadomień "toast" i implementacja przekierowania po pomyślnym zapisie.
-8.  **Stylowanie i dopracowanie UX:** Dopracowanie wyglądu formularza, komunikatów o błędach i stanu ładowania przycisku zapisu.
-9.  **Testowanie manualne:** Dokładne przetestowanie wszystkich ścieżek użytkownika, w tym walidacji i obsługi błędów.
+## 10. Kroki wdrożenia
+
+1. Utwórz/zmodyfikuj komponent `RecipeForm` z nową strukturą pól.
+2. Usuń stare komponenty (`IngredientsEditor`, `ProductSearchInput`) oraz związane z nimi typy/hooki.
+3. Uaktualnij importy w `recipes/new.astro` i `recipes/[id]/edit.astro`.
+4. Zaktualizuj istniejące hooki i serwisy, aby nie oczekiwały tablicy składników.
+5. Zastąp w testach referencje do comboboxa na zwykłe textarea input.
+6. Ręcznie przetestuj przepływy: dodanie, edycja, formularz wypełniony przez AI.
+7. Uruchom `npm run test` oraz `npm run e2e`.
+

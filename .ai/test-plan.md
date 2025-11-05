@@ -69,6 +69,12 @@ Proces testowy zostanie podzielony na następujące poziomy i typy:
 - **Scenariusz 1 (Happy Path)**: Użytkownik wprowadza preferencje, generuje przepis i otrzymuje poprawnie sformatowany wynik.
 - **Scenariusz 2**: Aplikacja poprawnie obsługuje błąd odpowiedzi z API Openrouter i wyświetla użytkownikowi odpowiedni komunikat.
 
+### 4.4. Zarządzanie preferencjami
+
+- **Scenariusz 1 (Happy Path)**: Użytkownik otwiera widok preferencji, wypełnia pola "Nie lubię" i "Alergeny" (≤200 znaków każde) i zapisuje zmiany, które są widoczne po ponownym wczytaniu strony.
+- **Scenariusz 2**: Walidacja blokuje zapis, gdy któreś pole przekracza 200 znaków, a użytkownik widzi czytelny komunikat.
+- **Scenariusz 3**: Gdy oba pola pozostają puste, na stronie głównej wyświetla się onboarding; po wprowadzeniu tekstu alert znika.
+
 ## 5. Środowisko Testowe
 
 - **Baza Danych**: Oddzielny projekt w Supabase przeznaczony wyłącznie do celów testowych, z wyizolowaną bazą danych i skonfigurowanymi kluczami API.

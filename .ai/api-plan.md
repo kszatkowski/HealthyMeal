@@ -2,31 +2,28 @@
 
 ## 1. Resources
 - `Auth` → Supabase `auth.users` (email/password authentication)
-- `Profile` → `profiles` (per-user application metadata)
-- `Product` → `products` (ingredient catalog)
-- `UserPreference` → `user_preferences` (likes/dislikes/allergens)
+- `Profile` → `profiles` (per-user application metadata, preference notes, onboarding state)
 - `Recipe` → `recipes` with nested `recipe_ingredients`
 - `AIRecipeGeneration` → Virtual resource orchestrating AI draft creation and quota tracking
-- `OnboardingNotice` → Derived state from `profiles` and `user_preferences`
+- `OnboardingNotice` → Derived state from `profiles`
 
 ## 2. Endpoints
 
 ### Profile
 
 **GET** `/api/profile`
-- Description: Retrieve the authenticated user profile plus preference counters.
+- Description: Retrieve the authenticated user profile, including preference notes and quota metadata.
 - Headers: `Authorization: Bearer <accessToken>`
 - Response 200 JSON:
 ```json
 {
   "id": "34f1f3c0-7c26-4f01-9dea-38ec90ed2aef",
   "aiRequestsCount": 2,
+  "dislikedIngredientsNote": "seler naciowy, tofu",
+  "allergensNote": "orzechy, mleko",
   "onboardingNotificationHiddenUntil": "2025-10-13T00:00:00Z",
   "createdAt": "2025-10-01T09:00:00Z",
-  "updatedAt": "2025-10-11T12:00:00Z",
-  "likesCount": 5,
-  "dislikesCount": 1,
-  "allergensCount": 0
+  "updatedAt": "2025-10-11T12:00:00Z"
 }
 ```
 - Success Codes:
@@ -36,11 +33,13 @@
   - `404 Not Found` – `profile_not_found`.
 
 **PATCH** `/api/profile`
-- Description: Update mutable profile fields (currently onboarding dismissal timestamp).
+- Description: Update mutable profile fields (preference notes and onboarding dismissal timestamp).
 - Headers: `Authorization: Bearer <accessToken>`
 - Request JSON:
 ```json
 {
+  "dislikedIngredientsNote": "seler naciowy, tofu",
+  "allergensNote": "orzechy, mleko",
   "onboardingNotificationHiddenUntil": "2025-10-13T00:00:00Z"
 }
 ```
@@ -48,103 +47,9 @@
 - Success Codes:
   - `200 OK` – profile updated.
 - Error Codes:
-  - `400 Bad Request` – `invalid_timestamp`, `payload_required`.
+  - `400 Bad Request` – `invalid_timestamp`, `payload_required`, `preference_note_too_long`.
   - `401 Unauthorized` – `missing_token`, `invalid_token`.
   - `409 Conflict` – `timestamp_in_past`.
-
-### Products
-
-**GET** `/api/products`
-- Description: List catalog products with search, pagination, and sorting.
-- Query Parameters:
-  - `search` (string, optional, max 50 chars, case-insensitive partial match).
-  - `limit` (integer, optional, default 20, max 50).
-  - `offset` (integer, optional, default 0).
-  - `sort` (`name.asc` | `name.desc`, optional, default `name.asc`).
-- Response 200 JSON:
-```json
-{
-  "items": [
-    { "id": "6d9011b0-0719-4d7a-8be3-262b8b2ab885", "name": "Almond" }
-  ],
-  "total": 142,
-  "limit": 20,
-  "offset": 0
-}
-```
-- Success Codes:
-  - `200 OK` – list returned.
-- Error Codes:
-  - `400 Bad Request` – `invalid_query_param`.
-
-**GET** `/api/products/{productId}`
-- Description: Fetch a single product by ID.
-- Response 200 JSON:
-```json
-{
-  "id": "6d9011b0-0719-4d7a-8be3-262b8b2ab885",
-  "name": "Almond"
-}
-```
-- Success Codes:
-  - `200 OK` – product found.
-- Error Codes:
-  - `404 Not Found` – `product_not_found`.
-
-### User Preferences
-
-**GET** `/api/preferences`
-- Description: List user preferences, optionally filtered by type.
-- Headers: `Authorization: Bearer <accessToken>`
-- Query Parameters:
-  - `type` (`like` | `dislike` | `allergen`, optional).
-- Response 200 JSON:
-```json
-{
-  "items": [
-    {
-      "id": "9348f004-5f09-43be-9f10-410df34718a6",
-      "preferenceType": "like",
-      "createdAt": "2025-10-10T18:00:00Z",
-      "product": {
-        "id": "6d9011b0-0719-4d7a-8be3-262b8b2ab885",
-        "name": "Almond"
-      }
-    }
-  ]
-}
-```
-- Success Codes:
-  - `200 OK` – preferences listed.
-- Error Codes:
-  - `401 Unauthorized` – `missing_token`, `invalid_token`.
-
-**POST** `/api/preferences`
-- Description: Create a new preference entry enforcing conflict and quota rules.
-- Headers: `Authorization: Bearer <accessToken>`
-- Request JSON:
-```json
-{
-  "productId": "6d9011b0-0719-4d7a-8be3-262b8b2ab885",
-  "preferenceType": "like"
-}
-```
-- Response 201 JSON: Preference resource as returned by GET.
-- Success Codes:
-  - `201 Created` – preference added.
-- Error Codes:
-  - `400 Bad Request` – `invalid_payload`, `unknown_product`.
-  - `401 Unauthorized` – `missing_token`, `invalid_token`.
-  - `409 Conflict` – `conflict_existing_preference`.
-  - `422 Unprocessable Entity` – `preference_limit_reached`.
-
-**DELETE** `/api/preferences/{preferenceId}`
-- Description: Remove a preference belonging to the user.
-- Headers: `Authorization: Bearer <accessToken>`
-- Response: `204 No Content`.
-- Error Codes:
-  - `401 Unauthorized` – `missing_token`, `invalid_token`.
-  - `404 Not Found` – `preference_not_found`.
 
 ### Recipes
 
@@ -270,10 +175,9 @@
     "name": "Herbed Chickpea Stew",
     "mealType": "dinner",
     "difficulty": "medium",
-    "instructions": "...",
-    "ingredients": [
-      { "name": "Chickpea", "amount": 200, "unit": "gram" }
-    ]
+    "instructions": "1. Podgrzej oliwę...",
+    "ingredients": "Ciecierzyca - 200 g\nBulion warzywny - 400 ml\nLiść laurowy - 1 szt",
+    "isAiGenerated": true
   },
   "aiRequestsRemaining": 1
 }
@@ -286,18 +190,17 @@
   - `403 Forbidden` – `ai_quota_exceeded`.
   - `422 Unprocessable Entity` – `preference_conflict_detected`.
 
-**POST** `/api/ai/recipes/save`
 - Description: Persist the latest AI draft as a stored recipe (idempotent per draft).
 - Headers: `Authorization: Bearer <accessToken>`
-- Request JSON: Same schema as `/api/recipes` with `isAiGenerated: true` and materialized ingredient product IDs.
+- Request JSON: Same schema as `/api/recipes` with `isAiGenerated: true`.
 - Response 201 JSON: Stored recipe payload.
 - Success Codes:
   - `201 Created` – recipe saved from AI draft.
 - Error Codes:
   - `400 Bad Request` – `invalid_payload`.
   - `401 Unauthorized` – `missing_token`, `invalid_token`.
-  - `404 Not Found` – `draft_not_found`, `product_not_found`.
-  - `422 Unprocessable Entity` – `ingredient_limit_exceeded`.
+  - `404 Not Found` – `draft_not_found`.
+  - `422 Unprocessable Entity` – `ingredients_too_long`.
 
 ### Onboarding Notice
 
@@ -339,16 +242,8 @@
 
 - Profile
   - `onboardingNotificationHiddenUntil` must be null or ≥ current timestamp.
+  - `dislikedIngredientsNote` and `allergensNote` are optional strings trimmed on save and limited to 200 characters.
   - Profile auto-created by database trigger `handle_new_user` upon registration.
-
-- Products
-  - Names unique (`UNIQUE (name)`); client should debounce search queries.
-  - Index `idx_recipes_meal_type` informs filter design for recipes.
-
-- User Preferences
-  - `preferenceType` limited to `like|dislike|allergen`; enforce via request validation.
-  - DB trigger `validate_user_preferences` enforces: no duplicates per product, category limit of 30, conflict messaging; API surfaces friendly errors.
-  - Deletions cascade via foreign keys when user removed.
 
 - Recipes
   - `name` ≤ 50 chars; `instructions` ≤ 5000 chars (VARCHAR constraints).
@@ -359,15 +254,15 @@
 
 - AI Recipe Generation
   - Check `profiles.ai_requests_count > 0` before invoking model; decrement atomically using RPC or transaction.
-  - Enforce alignment with preferences: exclude allergens/dislikes, prioritize likes when constructing prompt/result.
+  - Enforce alignment with preference notes: tokenize comma/semicolon separated terms (case-insensitive) and instruct the model to avoid allergens/dislikes while treating empty fields as no constraints.
   - Log user ID, request payload, and response metadata for audit.
-  - When AI output includes forbidden ingredients, respond with `422 preference_conflict_detected` without decrementing quota.
+  - If post-processing detects conflicting keywords in AI output (simple string match against tokens), respond with `422 preference_conflict_detected` without decrementing quota.
   - AI-generated ingredients should be serialized to the text field in the standard format.
 
 - Onboarding Notice
-  - `show` when both likes and dislikes lists are empty and `hiddenUntil` is null or expired.
+  - `show` when both preference notes are empty/whitespace-only and `hiddenUntil` is null or expired.
   - Dismissal sets `onboardingNotificationHiddenUntil = now + 2 days`; reuse profile validation.
 
 - Security & Performance
   - Apply input sanitation to thwart SQL injection (`PostgREST` equivalent using parameterized queries via Supabase SDK).
-  - Consider pagination caching for `/api/products` via HTTP `Cache-Control` headers (public) while private endpoints use `Cache-Control: no-store`.
+  - Preference notes are short text fields—strip HTML tags and normalize whitespace before persistence.

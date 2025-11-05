@@ -1,6 +1,6 @@
 import type { SupabaseServerClient } from "../../db/supabase.client.ts";
 import type { Database } from "../../db/database.types.ts";
-import type { ProfileResponseDto, ProfileUpdateCommand } from "../../types.ts";
+import type { ProfileResponseDto, UpdateProfilePayload } from "../../types.ts";
 
 type ProfileServiceErrorCode = "profile_not_found" | "invalid_input" | "internal_error";
 
@@ -76,8 +76,7 @@ export async function decrementAiRequestsCount(
 }
 
 /**
- * Retrieves user profile with preference counters.
- * Counts likes, dislikes, and allergens from user_preferences table.
+ * Retrieves user profile with preference notes.
  */
 export async function getProfile(supabase: SupabaseServerClient, userId: string): Promise<ProfileResponseDto> {
   // Guard: Validate input
@@ -86,10 +85,18 @@ export async function getProfile(supabase: SupabaseServerClient, userId: string)
   }
 
   try {
-    // Fetch profile data
+    // Fetch profile data with preference notes
     const { data: profileRow, error: profileError } = await supabase
       .from("profiles")
-      .select("id, ai_requests_count, onboarding_notification_hidden_until, created_at, updated_at")
+      .select(
+        `id,
+         ai_requests_count,
+         disliked_ingredients_note,
+         allergens_note,
+         onboarding_notification_hidden_until,
+         created_at,
+         updated_at`
+      )
       .eq("id", userId)
       .single();
 
@@ -97,31 +104,7 @@ export async function getProfile(supabase: SupabaseServerClient, userId: string)
       throw new ProfileServiceError("profile_not_found", "Profile not found for user", profileError);
     }
 
-    // Count user preferences by type
-    const { data: preferencesData, error: preferencesError } = await supabase
-      .from("user_preferences")
-      .select("preference_type")
-      .eq("user_id", userId);
-
-    if (preferencesError) {
-      console.warn("Failed to count preferences", { error: preferencesError });
-    }
-
-    const preferences = preferencesData ?? [];
-    const likesCount = preferences.filter((p) => p.preference_type === "like").length;
-    const dislikesCount = preferences.filter((p) => p.preference_type === "dislike").length;
-    const allergensCount = preferences.filter((p) => p.preference_type === "allergen").length;
-
-    return {
-      id: profileRow.id,
-      aiRequestsCount: profileRow.ai_requests_count,
-      onboardingNotificationHiddenUntil: profileRow.onboarding_notification_hidden_until,
-      createdAt: profileRow.created_at,
-      updatedAt: profileRow.updated_at,
-      likesCount,
-      dislikesCount,
-      allergensCount,
-    };
+    return mapProfileRowToDto(profileRow);
   } catch (error) {
     if (error instanceof ProfileServiceError) {
       throw error;
@@ -133,23 +116,41 @@ export async function getProfile(supabase: SupabaseServerClient, userId: string)
 
 /**
  * Updates user profile with mutable fields.
- * Currently supports updating onboarding_notification_hidden_until.
+ * Supports updating preference notes and onboarding_notification_hidden_until.
  */
 export async function updateProfile(
   supabase: SupabaseServerClient,
   userId: string,
-  command: ProfileUpdateCommand
+  payload: UpdateProfilePayload
 ): Promise<ProfileResponseDto> {
   // Guard: Validate input
   if (!userId || typeof userId !== "string") {
     throw new ProfileServiceError("invalid_input", "Invalid user ID");
   }
 
+  // Guard: Ensure at least one field is being updated
+  if (Object.keys(payload).length === 0) {
+    throw new ProfileServiceError("invalid_input", "Payload must include at least one field to update");
+  }
+
   try {
-    // Update profile
-    const updatePayload: Database["public"]["Tables"]["profiles"]["Update"] = {
-      onboarding_notification_hidden_until: command.onboardingNotificationHiddenUntil,
-    };
+    // Normalize and prepare update payload
+    const updatePayload: Database["public"]["Tables"]["profiles"]["Update"] = {};
+
+    if (payload.dislikedIngredientsNote !== undefined) {
+      updatePayload.disliked_ingredients_note = normalizePreferenceNote(payload.dislikedIngredientsNote);
+    }
+
+    if (payload.allergensNote !== undefined) {
+      updatePayload.allergens_note = normalizePreferenceNote(payload.allergensNote);
+    }
+
+    if (payload.onboardingNotificationHiddenUntil !== undefined) {
+      updatePayload.onboarding_notification_hidden_until = payload.onboardingNotificationHiddenUntil;
+    }
+
+    // Always update the updated_at timestamp
+    updatePayload.updated_at = new Date().toISOString();
 
     const { error: updateError } = await supabase.from("profiles").update(updatePayload).eq("id", userId);
 
@@ -166,4 +167,46 @@ export async function updateProfile(
 
     throw new ProfileServiceError("internal_error", "Failed to update profile", error);
   }
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Maps a profile row from the database to the ProfileResponseDto.
+ */
+function mapProfileRowToDto(row: {
+  id: string;
+  ai_requests_count: number;
+  disliked_ingredients_note: string | null;
+  allergens_note: string | null;
+  onboarding_notification_hidden_until: string | null;
+  created_at: string;
+  updated_at: string;
+}): ProfileResponseDto {
+  return {
+    id: row.id,
+    aiRequestsCount: row.ai_requests_count,
+    dislikedIngredientsNote: row.disliked_ingredients_note,
+    allergensNote: row.allergens_note,
+    onboardingNotificationHiddenUntil: row.onboarding_notification_hidden_until,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * Normalizes a preference note:
+ * - Trims whitespace
+ * - Converts empty strings to null
+ * - Returns null as-is
+ */
+function normalizePreferenceNote(note: string | null): string | null {
+  if (note === null) {
+    return null;
+  }
+
+  const trimmed = note.trim();
+  return trimmed.length === 0 ? null : trimmed;
 }

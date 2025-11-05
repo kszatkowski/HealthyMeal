@@ -16,7 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 export function MyRecipesView({ className }: { className?: string }) {
   const { recipes, pagination, filters, isLoading, error, updateFilters, deleteRecipe, reload } = useRecipes();
   const { profile, isLoading: isProfileLoading, refetch: refetchProfile } = useProfile();
-  const [showOnboardingNotice, setShowOnboardingNotice] = useState(true);
+  const [showOnboardingNotice, setShowOnboardingNotice] = useState<boolean | null>(null);
   const [hasMountedToaster, setHasMountedToaster] = useState(false);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [localRequestsRemaining, setLocalRequestsRemaining] = useState<number | null>(null);
@@ -31,6 +31,26 @@ export function MyRecipesView({ className }: { className?: string }) {
       setLocalRequestsRemaining(null);
     }
   }, [isProfileLoading, localRequestsRemaining]);
+
+  // Determine if onboarding notice should be shown
+  useEffect(() => {
+    if (!isProfileLoading && profile) {
+      // Show onboarding if both preference notes are empty and dismissal has expired
+      const preferencesEmpty = !profile.dislikedIngredientsNote && !profile.allergensNote;
+
+      if (preferencesEmpty) {
+        const now = new Date();
+        const dismissedUntil = profile.onboardingNotificationHiddenUntil
+          ? new Date(profile.onboardingNotificationHiddenUntil)
+          : null;
+        const isDismissedUntilValid = dismissedUntil && dismissedUntil > now;
+
+        setShowOnboardingNotice(!isDismissedUntilValid);
+      } else {
+        setShowOnboardingNotice(false);
+      }
+    }
+  }, [isProfileLoading, profile]);
 
   const handleMealTypeChange = (value: RecipeFiltersViewModel["mealType"] | "all") => {
     updateFilters({ mealType: value === "all" ? undefined : value });
@@ -62,7 +82,7 @@ export function MyRecipesView({ className }: { className?: string }) {
     [refetchProfile]
   );
 
-  const layoutClassName = useMemo(() => cn("flex flex-col gap-6", className), [className]);
+  const layoutClassName = useMemo(() => cn("flex flex-col gap-6 mt-6", className), [className]);
 
   const ensureToasterMounted = () => {
     if (!hasMountedToaster) {
@@ -70,18 +90,25 @@ export function MyRecipesView({ className }: { className?: string }) {
     }
   };
 
+  const handleOnboardingDismiss = async () => {
+    try {
+      await fetch("/api/onboarding-notice/dismiss", {
+        method: "POST",
+      });
+      setShowOnboardingNotice(false);
+      ensureToasterMounted();
+    } catch (error) {
+      console.error("Failed to dismiss onboarding notice", error);
+    }
+  };
+
   return (
     <div className={layoutClassName}>
       {hasMountedToaster ? <Toaster richColors closeButton position="top-center" /> : null}
 
-      <OnboardingAlert
-        show={showOnboardingNotice}
-        onDismiss={async () => {
-          setShowOnboardingNotice(false);
-          ensureToasterMounted();
-        }}
-        className="mt-6"
-      />
+      {showOnboardingNotice === null ? null : (
+        <OnboardingAlert show={showOnboardingNotice} onDismiss={handleOnboardingDismiss} />
+      )}
 
       <RecipesToolbar onGenerateRecipeClick={handleOpenGenerateModal} requestsRemaining={requestsRemaining} />
 

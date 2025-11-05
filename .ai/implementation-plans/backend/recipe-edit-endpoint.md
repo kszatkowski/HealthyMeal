@@ -1,98 +1,119 @@
-# API Endpoint Implementation Plan: Update Recipe
+# API Endpoint Implementation Plan: PUT /api/recipes/{recipeId}
 
-## 1. Przegląd punktu końcowego
-Ten dokument opisuje plan wdrożenia punktu końcowego `PUT /api/recipes/{recipeId}`, który umożliwia zastąpienie istniejącego przepisu nowymi danymi. Operacja obejmuje aktualizację podstawowych właściwości przepisu oraz pełną wymianę listy składników w ramach jednej transakcji atomowej.
+Aktualizacja przepisu nadal używa tego samego modelu danych co tworzenie: składniki przechowywane są jako tekst. Dokument aktualizuje poprzedni plan, usuwając zależność od tabel `recipe_ingredients` i `products`.
 
-## 2. Szczegóły żądania
-- **Metoda HTTP**: `PUT`
-- **Struktura URL**: `/api/recipes/{recipeId}`
-- **Parametry**:
-  - **Wymagane**:
-    - `recipeId` (w ścieżce): Identyfikator `uuid` przepisu do aktualizacji.
-    - `Authorization` (w nagłówku): Token dostępowy w formacie `Bearer <accessToken>`.
-  - **Opcjonalne**: Brak
-- **Ciało żądania (Request Body)**:
-  Obiekt JSON zgodny ze strukturą `RecipeUpdateCommand`.
-  ```json
-  {
-    "name": "string",
-    "mealType": "breakfast" | "lunch" | "dinner" | "snack",
-    "difficulty": "easy" | "medium" | "hard",
-    "instructions": "string",
-    "isAiGenerated": "boolean",
-    "ingredients": [
-      {
-        "productId": "uuid",
-        "amount": "number",
-        "unit": "g" | "ml" | "pcs" | "tsp" | "tbsp"
-      }
-    ]
+## 1. Definicja endpointu
+
+- **Metoda**: `PUT`
+- **Ścieżka**: `/api/recipes/{recipeId}`
+- **Autoryzacja**: Wymagany Bearer token (middleware dostarcza `locals.supabase` i `locals.user`).
+- **Body** (`RecipeUpdateCommand`):
+
+```json
+{
+  "name": "Zupa krem z dyni",
+  "mealType": "dinner",
+  "difficulty": "medium",
+  "ingredients": "Dynia - 500 g\nBulion warzywny - 500 ml\nImbir - 1 łyżeczka",
+  "instructions": "1. Rozgrzej piekarnik...",
+  "isAiGenerated": false
+}
+```
+
+- `isAiGenerated` jest opcjonalne; brak oznacza `false` (wartość poprzednia jest zachowywana, jeśli pole nie zostanie przesłane).
+
+## 2. Walidacja
+
+Użyj tego samego schematu Zod co przy tworzeniu (`recipeCreateSchema`), ale zezwól na częściowe wysyłanie pól, jeśli endpoint ma wspierać `PATCH`. Dla `PUT` wymagamy kompletu danych.
+
+```ts
+export const recipeUpdateSchema = recipeCreateSchema.extend({
+  isAiGenerated: z.boolean().optional(),
+});
+```
+
+- Dodatkowo waliduj `recipeId` jako `uuid` (np. `z.string().uuid()`).
+- Przytnij spacje na początku/końcu tekstu przed zapisem.
+
+## 3. Przepływ logiki
+
+1. Middleware weryfikuje token → brak użytkownika ⇒ `401`.
+2. Handler `PUT` (
+   `src/pages/api/recipes/[recipeId].ts`) pobiera `recipeId` z parametrów i JSON payload.
+3. Waliduj `recipeId` oraz body;
+   - Walidacja nieudana ⇒ `400 invalid_payload` / `422 ingredients_too_long` / `instructions_too_long`.
+4. Wywołaj `recipesService.updateRecipe(supabase, userId, recipeId, payload)`.
+5. Service:
+   - `select` z `recipes` aby upewnić się, że przepis istnieje i należy do użytkownika.
+   - `update` rekordu `recipes` z nowymi wartościami.
+   - Korzysta z `select().single()` aby zwrócić świeży rekord.
+6. Zwróć `200 OK` + `RecipeResponseDto`.
+
+## 4. Serwis `updateRecipe`
+
+```ts
+export async function updateRecipe(
+  supabase: SupabaseClient,
+  userId: string,
+  recipeId: string,
+  payload: RecipeUpdateCommand
+): Promise<RecipeResponseDto> {
+  const { data: existing, error: fetchError } = await supabase
+    .from('recipes')
+    .select('id, user_id, is_ai_generated')
+    .eq('id', recipeId)
+    .single();
+
+  if (fetchError || !existing) {
+    throw new NotFoundError('recipe_not_found');
   }
-  ```
+  if (existing.user_id !== userId) {
+    throw new ForbiddenError('recipe_not_found'); // maskuj brak uprawnień jako 404
+  }
 
-## 3. Wykorzystywane typy
-- **Modele wejściowe (Command)**:
-  - `RecipeUpdateCommand`
-  - `RecipeCommandIngredient`
-- **Modele wyjściowe (DTO)**:
-  - `RecipeResponseDto`
-  - `RecipeIngredientDto`
+  const { data, error } = await supabase
+    .from('recipes')
+    .update({
+      name: payload.name.trim(),
+      meal_type: payload.mealType,
+      difficulty: payload.difficulty,
+      ingredients: payload.ingredients.trim(),
+      instructions: payload.instructions.trim(),
+      is_ai_generated: payload.isAiGenerated ?? existing.is_ai_generated,
+    })
+    .eq('id', recipeId)
+    .select()
+    .single();
 
-## 4. Szczegóły odpowiedzi
-- **Odpowiedź sukcesu (`200 OK`)**:
-  Zwraca zaktualizowany obiekt przepisu w formacie `RecipeResponseDto`.
-- **Odpowiedzi błędów**:
-  - `400 Bad Request`: Nieprawidłowe dane w żądaniu.
-  - `401 Unauthorized`: Błąd uwierzytelniania.
-  - `404 Not Found`: Nie znaleziono przepisu.
-  - `422 Unprocessable Entity`: Przekroczono limit składników.
-  - `500 Internal Server Error`: Wewnętrzny błąd serwera.
+  if (error) throw mapSupabaseError(error);
 
-## 5. Przepływ danych
-1. Żądanie `PUT` trafia do serwera Astro.
-2. Middleware (`src/middleware/index.ts`) weryfikuje token JWT. Jeśli jest poprawny, dołącza dane użytkownika do `context.locals`. W przeciwnym razie zwraca `401 Unauthorized`.
-3. Handler w `src/pages/api/recipes/[recipeId].ts` jest wywoływany.
-4. Handler weryfikuje obecność użytkownika w `context.locals`.
-5. `recipeId` jest odczytywany z parametrów ścieżki, a ciało żądania jest parsowane.
-6. Schemat walidacji Zod jest używany do sprawdzenia poprawności `recipeId` i ciała żądania. W przypadku błędu zwracany jest status `400 Bad Request` lub `422 Unprocessable Entity`.
-7. Handler wywołuje funkcję `recipesService.updateRecipe()` przekazując `supabaseClient`, `userId`, `recipeId` oraz zwalidowane dane.
-8. Funkcja `updateRecipe` w `src/lib/services/recipes.service.ts` wykonuje transakcję bazodanową:
-   a. Weryfikuje, czy przepis o danym `recipeId` istnieje i należy do `userId`. Jeśli nie, zwraca błąd `recipe_not_found`.
-   b. Aktualizuje rekord w tabeli `recipes`.
-   c. Usuwa wszystkie istniejące rekordy z `recipe_ingredients` dla danego `recipe_id`.
-   d. Wstawia nowe rekordy składników do `recipe_ingredients`.
-   e. Jeśli jakikolwiek krok się nie powiedzie, transakcja jest wycofywana.
-9. Po pomyślnej transakcji, serwis pobiera pełne dane zaktualizowanego przepisu i mapuje je na `RecipeResponseDto`.
-10. Handler odbiera wynik z serwisu i zwraca odpowiedź JSON: `200 OK` z danymi przepisu lub odpowiedni kod błędu.
+  return mapRecipeRowToDto(data);
+}
+```
 
-## 6. Względy bezpieczeństwa
-- **Uwierzytelnianie**: Każde żądanie musi być uwierzytelnione za pomocą ważnego tokena JWT, co jest egzekwowane przez middleware.
-- **Autoryzacja**: Logika w serwisie musi bezwzględnie sprawdzać, czy `user_id` w tabeli `recipes` pasuje do ID uwierzytelnionego użytkownika. Zapobiega to modyfikacji przepisów przez nieuprawnione osoby.
-- **Walidacja danych wejściowych**: Stosowanie `Zod` do walidacji wszystkich danych wejściowych chroni przed błędami przetwarzania i potencjalnymi atakami (np. NoSQL injection, jeśli byłoby to relevantne).
-- **Ochrona przed SQL Injection**: Wykorzystanie metod z biblioteki klienckiej Supabase zapewnia parametryzację zapytań i chroni przed atakami SQL Injection.
+- `mapSupabaseError` ponownie mapuje przekroczenie limitów na `422`.
+- Jeżeli brak zmian (Supabase zwróci `null`), traktuj jako `recipe_not_found`.
 
-## 7. Obsługa błędów
-| Kod statusu | Kod błędu (w odpowiedzi) | Przyczyna |
-|---|---|---|
-| `400 Bad Request` | `invalid_payload` | Błąd walidacji Zod dla ciała żądania lub `recipeId`. |
-| `401 Unauthorized` | `missing_token` / `invalid_token` | Brak lub nieprawidłowy token JWT. |
-| `404 Not Found` | `recipe_not_found` | Przepis nie istnieje lub nie należy do użytkownika. |
-| `422 Unprocessable Entity` | `ingredient_limit_exceeded`| Przekroczono maksymalną liczbę składników (np. 50). |
-| `500 Internal Server Error`| `internal_server_error`| Niepowodzenie transakcji DB lub inny nieoczekiwany błąd. |
+## 5. Obsługa błędów (HTTP → kod)
 
-## 8. Rozważania dotyczące wydajności
-- **Transakcje**: Zamknięcie operacji na bazach `recipes` i `recipe_ingredients` w jednej transakcji jest kluczowe nie tylko dla integralności danych, ale także dla wydajności, minimalizując liczbę oddzielnych operacji I/O.
-- **Indeksowanie**: Należy upewnić się, że kolumny `recipes.user_id` oraz `recipe_ingredients.recipe_id` są zaindeksowane w celu przyspieszenia operacji wyszukiwania i łączenia.
+| Status | Kod                        | Powód                                         |
+|--------|---------------------------|-----------------------------------------------|
+| 400    | `invalid_payload`         | Błąd walidacji schematu / JSON                |
+| 401    | `missing_token`           | Brak sesji                                    |
+| 404    | `recipe_not_found`        | Nie znaleziono przepisu dla użytkownika       |
+| 422    | `ingredients_too_long`    | `ingredients` > 1000 znaków                   |
+| 422    | `instructions_too_long`   | `instructions` > 5000 znaków                  |
+| 500    | `internal_error`          | Inny błąd Supabase                            |
 
-## 9. Etapy wdrożenia
-1. **Schemat walidacji**: W pliku `src/lib/schemas/recipe.schema.ts` (jeśli nie istnieje, należy go utworzyć. Zwróć uwagę że istnieje schema `recipeIngredientSchema` w katalogu `RecipeFormView`), zdefiniować schemat Zod dla `RecipeUpdateCommand`. Uwzględnić walidację typów, długości stringów oraz limit na liczbę składników (np. `.array().max(50)`).
-2. **Endpoint API**: Utworzyć nowy plik `src/pages/api/recipes/[recipeId].ts`.
-3. **Implementacja handlera**: W nowym pliku zaimplementować handler `PUT`. Handler powinien:
-   - Sprawdzić uwierzytelnienie użytkownika.
-   - Zwalidować `recipeId` i ciało żądania za pomocą schematu Zod.
-   - Wywołać odpowiednią funkcję serwisu.
-   - Obsłużyć odpowiedzi (sukces i błędy) i zwrócić odpowiedni status HTTP.
-4. **Logika serwisu**: W `src/lib/services/recipes.service.ts` dodać nową funkcję `updateRecipe`.
-5. **Implementacja transakcji**: Wewnątrz `updateRecipe` zaimplementować logikę transakcyjną. Ze względu na ograniczenia klienta Supabase.js, najlepszym podejściem do zapewnienia atomowości jest stworzenie i wywołanie funkcji PostgreSQL za pomocą `supabase.rpc()`. Funkcja ta powinna przyjmować wszystkie dane i wykonywać operacje `UPDATE`, `DELETE` i `INSERT` w jednej transakcji.
-6. **Mapowanie DTO**: Po pomyślnym wykonaniu transakcji, pobrać zaktualizowane dane i zmapować je na `RecipeResponseDto`.
-7. **Testowanie**: Przygotować i przeprowadzić testy manualne lub automatyczne (jeśli dotyczy) dla wszystkich scenariuszy, w tym ścieżki sukcesu i przypadków błędów.
+## 6. Testy
+
+- **Unit**: mapowanie błędów, walidacja (np. długie pola), poprawność maskowania `403 → 404`.
+- **Integration**: test endpointu z Supabase lokalnym – przypadek happy path, brak uprawnień, przekroczenie limitu znaków.
+- **E2E**: Edycja przepisu w UI, sprawdzenie, że tekstowe składniki są zachowane.
+
+## 7. Dodatkowe rozważania
+
+- Jeśli `PUT` ma nadpisywać całą treść, upewnij się, że frontend wysyła pełny formularz (nie tylko zmienione pola).
+- W przyszłości można rozważyć `PATCH`, ale obecnie `PUT` z pełnym payloadem jest prostszy.
+- Loguj zmiany (np. `console.info` z `recipeId`, `userId`) w trybie debug dla audytu.
+

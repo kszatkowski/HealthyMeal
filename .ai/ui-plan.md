@@ -68,16 +68,15 @@ Architektura jest zorientowana na realizację kluczowych przepływów użytkowni
 
 ### Widok 5: Preferencje (Preferences View)
 - **Ścieżka:** `/preferences`
-- **Główny cel:** Zarządzanie preferencjami żywieniowymi użytkownika (lubię, nie lubię, alergeny).
-- **Kluczowe informacje do wyświetlenia:** Trzy listy produktów powiązane z każdą kategorią preferencji.
+- **Główny cel:** Zarządzanie preferencjami żywieniowymi użytkownika za pomocą dwóch krótkich pól tekstowych ("Nie lubię" i "Alergeny").
+- **Kluczowe informacje do wyświetlenia:** Formularz z polami tekstowymi, licznik znaków (0/200) oraz stan ostatniej aktualizacji.
 - **Kluczowe komponenty widoku:**
-  - `PreferenceColumn`: Komponent wielokrotnego użytku dla każdej kategorii ("Lubię", "Nie lubię", "Alergeny").
-  - `ProductSearchInput`: Komponent `Combobox` (Shadcn/ui) zintegrowany z `GET /api/products` do wyszukiwania i dodawania produktów.
-  - `PreferenceList`: Lista dodanych produktów z opcją usunięcia.
+  - `PreferenceForm`: Komponent React z `react-hook-form`, renderujący dwa pola `Textarea` (Shadcn/ui) z walidacją długości i przyciskiem zapisu.
+  - `PreferenceSummary`: Opcjonalny blok ze skrótem lub wskazówkami jak formatować wpisy (np. lista oddzielona przecinkami).
 - **UX, dostępność i względy bezpieczeństwa:**
-  - **UX:** Responsywny układ (3 kolumny na desktopie, 1 na mobile). Zmiany są zapisywane natychmiast po każdej operacji (dodanie/usunięcie produktu), co jest komunikowane przez wskaźniki ładowania.
-  - **Dostępność:** Zapewnienie, że interaktywne elementy są w pełni dostępne.
-  - **Bezpieczeństwo:** Dostęp do widoku chroniony, operacje modyfikacji autoryzowane tokenem.
+  - **UX:** Układ jednowierszowy na desktopie (dwie kolumny) i pionowy na mobile. Stały przycisk "Zapisz" z informacją o stanie (`Zapisano`, `Zapisywanie...`).
+  - **Dostępność:** Pełne etykiety, opisy (`aria-describedby`) informujące o limicie znaków oraz wyraźne komunikaty błędów.
+  - **Bezpieczeństwo:** Dostęp do widoku chroniony, zapis korzysta z uwierzytelnionego `/api/profile`.
 
 ### Widok 6: Przegląd Przepisu (Recipe Details View)
 - **Ścieżka:** `/recipes/[id]`
@@ -138,8 +137,8 @@ Poniżej znajduje się lista kluczowych, reużywalnych komponentów React, któr
   - **Opis:** Komponent wyświetlający szczegółowe informacje o przepisie, takie jak tekst składników i instrukcje. Zawiera również przyciski akcji ("Edytuj", "Usuń").
 - **`RecipeForm`:**
   - **Opis:** Kompleksowy formularz do tworzenia i edycji przepisów, zawierający pola na tekstowe składniki, instrukcje, walidację i logikę komunikacji z API.
-- **`PreferenceColumn`:**
-  - **Opis:** Komponent używany w widoku preferencji do zarządzania jedną z list ("Lubię", "Nie lubię", "Alergeny").
+- **`PreferenceForm`:**
+  - **Opis:** Komponent formularza zarządzającego polami tekstowymi "Nie lubię" oraz "Alergeny" z walidacją limitu 200 znaków i obsługą zapisu.
 - **`AI_GenerationModal`:**
   - **Opis:** Komponent `Dialog` (Shadcn/ui) z formularzem do zbierania danych na potrzeby generowania przepisu przez AI.
 - **`DeleteConfirmationDialog`:**

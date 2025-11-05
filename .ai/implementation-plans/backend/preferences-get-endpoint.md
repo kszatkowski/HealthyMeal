@@ -1,90 +1,166 @@
-# API Endpoint Implementation Plan: GET /api/preferences
+# API Endpoint Implementation Plan: GET & PATCH /api/profile (Preference Notes)
 
-## 1. Przegląd punktu końcowego
-Ten punkt końcowy jest odpowiedzialny za pobieranie listy preferencji żywieniowych (`like`, `dislike`, `allergen`) dla uwierzytelnionego użytkownika. Umożliwia opcjonalne filtrowanie wyników na podstawie typu preferencji.
+This plan supersedes the legacy `GET /api/preferences` endpoint. Preference data now lives directly on the `profiles` table as two free-text fields (`disliked_ingredients_note`, `allergens_note`). Both operations are handled through `/api/profile`.
 
-## 2. Szczegóły żądania
-- **Metoda HTTP**: `GET`
-- **Struktura URL**: `/api/preferences`
-- **Nagłówki**:
-  - Wymagane: `Authorization: Bearer <accessToken>`
-- **Parametry zapytania (Query Parameters)**:
-  - Opcjonalne:
-    - `type`: `string` - Filtruje preferencje według typu. Dozwolone wartości: `like`, `dislike`, `allergen`.
-- **Request Body**: Brak
+## 1. Endpoint Definition
 
-## 3. Wykorzystywane typy
-Do implementacji tego punktu końcowego wykorzystane zostaną następujące, już istniejące, typy DTO z `src/types.ts`:
-- `PreferenceListItemDto`: Definiuje strukturę pojedynczego obiektu preferencji w odpowiedzi.
-- `PreferenceListResponseDto`: Definiuje strukturę głównego obiektu odpowiedzi, zawierającego listę preferencji.
+- **Methods**: `GET`, `PATCH`
+- **URL**: `/api/profile`
+- **Authentication**: Required. Bearer token processed by middleware and exposed via `Astro.locals.user` and `Astro.locals.supabase`.
+- **Responsibility**:
+  - `GET`: Return profile metadata together with preference notes and quota counters.
+  - `PATCH`: Allow updating preference notes (≤200 chars each) and the onboarding dismissal timestamp.
 
-## 4. Szczegóły odpowiedzi
-- **Struktura odpowiedzi sukcesu (200 OK)**:
-  ```json
-  {
-    "items": [
-      {
-        "id": "9348f004-5f09-43be-9f10-410df34718a6",
-        "preferenceType": "like",
-        "createdAt": "2025-10-10T18:00:00Z",
-        "product": {
-          "id": "6d9011b0-0719-4d7a-8be3-262b8b2ab885",
-          "name": "Almond"
-        }
-      }
-    ]
-  }
-  ```
-- **Kody statusu**:
-  - `200 OK`: Pomyślnie zwrócono listę preferencji.
-  - `400 Bad Request`: Nieprawidłowa wartość parametru `type`.
-  - `401 Unauthorized`: Brak lub nieprawidłowy token uwierzytelniający.
-  - `500 Internal Server Error`: Wewnętrzny błąd serwera.
+## 2. Request & Response Schemas
 
-## 5. Przepływ danych
-1.  Klient wysyła żądanie `GET` do `/api/preferences` z tokenem JWT w nagłówku `Authorization`.
-2.  Middleware Astro (`src/middleware/index.ts`) przechwytuje żądanie, weryfikuje token JWT i jeśli jest ważny, dołącza informacje o użytkowniku do `Astro.locals.user`.
-3.  Handler API (`src/pages/api/preferences/index.ts`) jest wywoływany.
-4.  Handler sprawdza, czy `Astro.locals.user` istnieje. Jeśli nie, zwraca błąd `401 Unauthorized`.
-5.  Handler parsuje i waliduje opcjonalny parametr `type` z URL przy użyciu schematu Zod. W przypadku błędu walidacji zwraca `400 Bad Request`.
-6.  Handler wywołuje funkcję `listUserPreferences` z nowo utworzonego serwisu `preferences.service.ts`, przekazując `userId` z `Astro.locals.user` oraz zwalidowany `type`.
-7.  Funkcja `listUserPreferences` wykonuje zapytanie do bazy danych Supabase do tabeli `user_preferences`.
-    - Zapytanie filtruje rekordy na podstawie `user_id`.
-    - Jeśli parametr `type` został podany, zapytanie dodatkowo filtruje po `preference_type`.
-    - Zapytanie wykonuje `JOIN` z tabelą `products`, aby pobrać nazwę produktu.
-8.  Serwis mapuje wyniki z bazy danych na strukturę `PreferenceListItemDto`.
-9.  Handler API otrzymuje dane z serwisu i opakowuje je w obiekt `PreferenceListResponseDto`.
-10. Handler zwraca odpowiedź JSON z kodem statusu `200 OK`.
+```ts
+// src/types.ts (or dedicated DTO module)
+export type ProfileResponseDto = {
+  id: string;
+  aiRequestsCount: number;
+  dislikedIngredientsNote: string | null;
+  allergensNote: string | null;
+  onboardingNotificationHiddenUntil: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
-## 6. Względy bezpieczeństwa
-- **Uwierzytelnianie**: Dostęp do punktu końcowego jest ograniczony do uwierzytelnionych użytkowników. Middleware jest odpowiedzialne za weryfikację tokenu.
-- **Autoryzacja**: Logika serwisu musi bezwzględnie używać `user_id` z sesji zalogowanego użytkownika we wszystkich zapytaniach do bazy danych, aby zapobiec dostępowi do danych innych użytkowników.
-- **Walidacja danych wejściowych**: Parametr `type` musi być walidowany przy użyciu Zod, aby upewnić się, że jest to jedna z oczekiwanych wartości. Zapobiega to błędom i potencjalnym atakom.
+export type UpdateProfilePayload = {
+  dislikedIngredientsNote?: string | null;
+  allergensNote?: string | null;
+  onboardingNotificationHiddenUntil?: string | null;
+};
+```
 
-## 7. Obsługa błędów
-- **Brak użytkownika (401)**: Jeśli `Astro.locals.user` jest `null` lub `undefined` po przejściu przez middleware, handler powinien zwrócić odpowiedź `401 Unauthorized`.
-- **Błąd walidacji (400)**: Jeśli walidacja Zod dla parametru `type` zakończy się niepowodzeniem, handler zwróci `400 Bad Request` z informacją o błędzie.
-- **Błąd serwera (500)**: Wszelkie nieoczekiwane błędy, takie jak problemy z połączeniem z bazą danych, będą przechwytywane w bloku `try...catch`, logowane na serwerze i zwracany będzie ogólny błąd `500 Internal Server Error`.
+- Both notes are optional; an empty string should be normalised to `null`.
+- Timestamps must be ISO 8601 strings or `null`.
 
-## 8. Rozważania dotyczące wydajności
-- **Indeksowanie bazy danych**: Należy upewnić się, że kolumny `user_id` i `preference_type` w tabeli `user_preferences` są odpowiednio zindeksowane, aby zapewnić wysoką wydajność zapytań, zwłaszcza przy dużej ilości danych.
+## 3. Validation with Zod
 
-## 9. Etapy wdrożenia
-1.  **Utworzenie schematu walidacji**:
-    - Utwórz nowy plik `src/lib/schemas/preferences.schema.ts`.
-    - Zdefiniuj w nim schemat Zod do walidacji parametrów zapytania (`type`).
-2.  **Utworzenie serwisu**:
-    - Utwórz nowy plik `src/lib/services/preferences.service.ts`.
-    - Zaimplementuj funkcję `listUserPreferences(supabase: SupabaseClient, userId: string, type?: string)`, która będzie zawierała logikę zapytania do bazy danych Supabase.
-    - Funkcja powinna zwracać `Promise<PreferenceListItemDto[]>`.
-3.  **Implementacja punktu końcowego API**:
-    - Utwórz nowy plik `src/pages/api/preferences/index.ts`.
-    - Zaimplementuj handler `GET`, który będzie obsługiwał żądania.
-    - W handlerze:
-        - Pobierz klienta Supabase i sesję użytkownika z `Astro.locals`.
-        - Przeprowadź walidację parametrów zapytania za pomocą utworzonego schematu Zod.
-        - Wywołaj funkcję `listUserPreferences` z serwisu.
-        - Zbuduj i zwróć odpowiedź `PreferenceListResponseDto` w formacie JSON.
-        - Zaimplementuj obsługę błędów `try...catch`.
-4.  **Ustawienia Astro**:
-    - Upewnij się, że w pliku `src/pages/api/preferences/index.ts` znajduje się `export const prerender = false;`, aby wymusić renderowanie dynamiczne.
+Create/extend `src/lib/schemas/profile.schema.ts`:
+
+```ts
+import { z } from 'zod';
+
+const preferenceNoteSchema = z
+  .string()
+  .max(200, 'Notatka może mieć maksymalnie 200 znaków')
+  .transform((value) => {
+    const trimmed = value.trim();
+    return trimmed.length === 0 ? null : trimmed;
+  });
+
+export const updateProfileSchema = z
+  .object({
+    dislikedIngredientsNote: preferenceNoteSchema.nullable().optional(),
+    allergensNote: preferenceNoteSchema.nullable().optional(),
+    onboardingNotificationHiddenUntil: z
+      .string()
+      .datetime({ offset: true })
+      .or(z.null())
+      .optional(),
+  })
+  .refine((payload) => Object.keys(payload).length > 0, {
+    message: 'Payload must include at least one field to update.',
+  });
+```
+
+Helper utilities:
+
+- Normalise incoming payload (`null`, empty string, whitespace → `null`).
+- Guard against timestamps in the past before persisting dismissal data.
+
+## 4. Service Layer
+
+Extend `src/lib/services/profile.service.ts` (create if missing):
+
+```ts
+export async function getProfile(supabase: SupabaseClient, userId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(
+      `id,
+       ai_requests_count,
+       disliked_ingredients_note,
+       allergens_note,
+       onboarding_notification_hidden_until,
+       created_at,
+       updated_at`
+    )
+    .eq('id', userId)
+    .single();
+
+  if (error) throw mapSupabaseError(error);
+  if (!data) throw new NotFoundError('profile_not_found');
+
+  return mapProfileRowToDto(data);
+}
+
+export async function updateProfile(
+  supabase: SupabaseClient,
+  userId: string,
+  payload: UpdateProfilePayload
+) {
+  const normalized = normalisePreferenceNotes(payload);
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(normalized)
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) throw mapSupabaseError(error);
+  if (!data) throw new NotFoundError('profile_not_found');
+
+  return mapProfileRowToDto(data);
+}
+```
+
+Implementation notes:
+
+- `normalisePreferenceNotes` removes keys whose value is `undefined` and converts empty strings to `null`.
+- `mapSupabaseError` should translate Postgres constraint failures into API error codes (`preference_note_too_long`, `timestamp_in_past`).
+
+## 5. Endpoint Flow (`src/pages/api/profile/index.ts`)
+
+1. `export const prerender = false;`
+2. Retrieve `locals.user` and `locals.supabase`; return `401` if either missing.
+3. For `GET`:
+   - Call `getProfile` service.
+   - Return JSON serialised `ProfileResponseDto`.
+4. For `PATCH`:
+   - Parse JSON body; validate with `updateProfileSchema`.
+   - Perform additional guard: if `onboardingNotificationHiddenUntil` < `now()`, return `409 timestamp_in_past`.
+   - Call `updateProfile` service and return updated DTO.
+5. Catch validation errors → `400 invalid_payload` (include `preference_note_too_long`, `invalid_timestamp`).
+6. Catch service errors and map to appropriate status codes (401/404/409/500).
+
+## 6. Error Codes
+
+| HTTP Status | Code                         | Description                                          |
+|-------------|-----------------------------|------------------------------------------------------|
+| 400         | `invalid_payload`           | JSON parse failure / unknown fields                  |
+| 400         | `preference_note_too_long`  | Any note > 200 characters                            |
+| 400         | `invalid_timestamp`         | Timestamp fails ISO parsing                          |
+| 409         | `timestamp_in_past`         | Dismissal timestamp older than current UTC time      |
+| 401         | `missing_token` / `invalid_token` | Authentication failure                           |
+| 404         | `profile_not_found`         | Row missing (should be rare)                         |
+| 500         | `internal_error`            | Unhandled Supabase/Postgres errors                   |
+
+## 7. Derived Business Logic
+
+- Onboarding alert uses `dislikedIngredientsNote` and `allergensNote`: show reminder when both are `null`/empty and dismissal timestamp is `null` or expired.
+- AI generator splits notes on commas/semicolons to exclude keywords; backend should simply provide raw text to downstream services.
+- Frontend should surface a 200-character counter for each textarea to match backend validation.
+
+## 8. Implementation Checklist
+
+1. **Database**: add `disliked_ingredients_note` and `allergens_note` (`varchar(200)`) columns to `profiles` (see DB plan).
+2. **Schema**: update/create `profile.schema.ts` with validation above.
+3. **Service**: implement `getProfile`, `updateProfile`, utilities for normalization and error mapping.
+4. **Endpoint**: refactor `/api/profile` route to use the service and new schema; remove `/api/preferences` route.
+5. **Client**: update hooks/components to call `/api/profile` for preference data.
+6. **Tests**: add unit/integration tests covering validation, trimming, timestamp guards, and onboarding logic.
+7. **Docs**: ensure PRD, API docs, and onboarding specifications reference the new text-field behaviour.
+8. **Cleanup**: delete obsolete `preferences` service/schema files after migration.
+
