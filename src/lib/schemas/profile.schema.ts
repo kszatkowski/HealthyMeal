@@ -30,7 +30,8 @@ export const updateProfileSchema = z
   .strict()
   .refine(
     (payload) => {
-      const hasDislikedIngredients = payload.dislikedIngredientsNote !== null && payload.dislikedIngredientsNote !== undefined;
+      const hasDislikedIngredients =
+        payload.dislikedIngredientsNote !== null && payload.dislikedIngredientsNote !== undefined;
       const hasAllergens = payload.allergensNote !== null && payload.allergensNote !== undefined;
       return hasDislikedIngredients || hasAllergens;
     },
