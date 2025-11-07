@@ -45,7 +45,8 @@ jobs:
     permissions:
       contents: read
       deployments: write
-    environment: prod
+    environment:
+      name: prod
 
     steps:
       - name: Checkout code
@@ -68,15 +69,3 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy ./dist --project-name=healthy-meal
-
-  deployment-notification:
-    name: Deployment Notification
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs: [lint, unit-tests, build]
-    if: always() && (needs.lint.result == 'success' && needs.unit-tests.result == 'success' && needs.build.result == 'success')
-
-    steps:
-      - name: Deployment successful
-        run: echo "✅ Build and deployment to Cloudflare Pages completed successfully!"
-
