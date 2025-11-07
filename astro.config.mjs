@@ -19,7 +19,7 @@ export default defineConfig({
       SUPABASE_URL: envField.string({ context: "server", access: "secret" }),
       SUPABASE_KEY: envField.string({ context: "server", access: "secret" }),
       OPENROUTER_API_KEY: envField.string({ context: "server", access: "secret" }),
-      PUBLIC_SITE_URL: envField.string({ context: "server", access: "secret" }),
+      SITE_URL: envField.string({ context: "server", access: "public", default: "http://localhost:3000" }),
     },
   },
   adapter: cloudflare({

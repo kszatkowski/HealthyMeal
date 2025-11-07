@@ -1,6 +1,7 @@
 import type { ZodSchema } from "zod";
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
+import { OPENROUTER_API_KEY, SITE_URL } from "astro:env/server";
 
 // ============================================================================
 // Custom Error Classes
@@ -77,7 +78,7 @@ class OpenRouterService {
   private readonly apiBaseUrl = "https://openrouter.ai/api/v1/chat/completions";
 
   constructor(config: OpenRouterServiceConfig = {}) {
-    const apiKey = config.apiKey ?? process.env.OPENROUTER_API_KEY;
+    const apiKey = config.apiKey ?? OPENROUTER_API_KEY;
     if (!apiKey) {
       throw new Error("OpenRouter API key is not configured. Please set OPENROUTER_API_KEY environment variable.");
     }
@@ -85,7 +86,7 @@ class OpenRouterService {
     this.config = {
       apiKey,
       defaultModel: config.defaultModel ?? "meta-llama/llama-3.3-70b-instruct:free",
-      siteUrl: config.siteUrl ?? process.env.PUBLIC_SITE_URL ?? "http://localhost:3000",
+      siteUrl: config.siteUrl ?? SITE_URL,
       appName: config.appName ?? "HealthyMeal",
     };
   }
