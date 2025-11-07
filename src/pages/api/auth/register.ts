@@ -50,11 +50,27 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
   }
 
-  if (!user || !session) {
+  if (!user) {
     return new Response(JSON.stringify({ error: "Nie udało się utworzyć konta." }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // Session może być null jeśli email confirmation jest włączone w Supabase
+  // W takim przypadku użytkownik musi potwierdzić email przed zalogowaniem
+  if (!session) {
+    console.log("register:no-session", "Email confirmation may be enabled in Supabase");
+    return new Response(
+      JSON.stringify({
+        message: "Konto zostało utworzone. Sprawdź swoją skrzynkę email, aby potwierdzić adres.",
+        requiresConfirmation: true,
+      }),
+      {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   return new Response(
