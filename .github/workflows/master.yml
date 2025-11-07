@@ -45,6 +45,7 @@ jobs:
     permissions:
       contents: read
       deployments: write
+    environment: prod
 
     steps:
       - name: Checkout code
