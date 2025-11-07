@@ -59,16 +59,16 @@ export function RegisterForm() {
         return;
       }
 
-      const result = (await response.json().catch(() => null)) as 
-        | { message?: string; requiresConfirmation?: boolean } 
-        | { user?: { id: string; email: string } } 
+      const result = (await response.json().catch(() => null)) as
+        | { message?: string; requiresConfirmation?: boolean }
+        | { user?: { id: string; email: string } }
         | null;
 
       // Status 201: wymaga potwierdzenia emaila
       if (response.status === 201 || (result && "requiresConfirmation" in result && result.requiresConfirmation)) {
         setSuccessMessage(
-          (result && "message" in result && result.message) || 
-          "Konto zostało utworzone. Sprawdź swoją skrzynkę email, aby potwierdzić adres."
+          (result && "message" in result && result.message) ||
+            "Konto zostało utworzone. Sprawdź swoją skrzynkę email, aby potwierdzić adres."
         );
         // Nie przekierowujemy - użytkownik musi potwierdzić email
         return;
