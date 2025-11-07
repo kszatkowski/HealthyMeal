@@ -58,9 +58,6 @@ jobs:
       - name: Build project
         run: npm run build
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           PUBLIC_SITE_URL: ${{ secrets.PUBLIC_SITE_URL }}
 
       - name: Deploy to Cloudflare Pages

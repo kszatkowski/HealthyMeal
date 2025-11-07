@@ -1,5 +1,5 @@
 // @ts-check
-import { defineConfig } from "astro/config";
+import { defineConfig, envField } from "astro/config";
 
 import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
@@ -13,6 +13,14 @@ export default defineConfig({
   server: { port: 3000 },
   vite: {
     plugins: [tailwindcss()],
+  },
+  env: {
+    schema: {
+      SUPABASE_URL: envField.string({ context: "server", access: "secret" }),
+      SUPABASE_KEY: envField.string({ context: "server", access: "secret" }),
+      OPENROUTER_API_KEY: envField.string({ context: "server", access: "secret" }),
+      PUBLIC_SITE_URL: envField.string({ context: "server", access: "secret" }),
+    },
   },
   adapter: cloudflare({
     platformProxy: {

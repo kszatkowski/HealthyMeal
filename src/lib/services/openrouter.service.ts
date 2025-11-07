@@ -2,9 +2,6 @@ import type { ZodSchema } from "zod";
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 
-// Load environment variables from .env file
-import "dotenv/config";
-
 // ============================================================================
 // Custom Error Classes
 // ============================================================================
