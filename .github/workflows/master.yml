@@ -1,8 +1,6 @@
 name: Build & Deploy to Cloudflare
 
 on:
-  push:
-    branches: [feature-deployment]
   workflow_dispatch: 
 
 jobs:
