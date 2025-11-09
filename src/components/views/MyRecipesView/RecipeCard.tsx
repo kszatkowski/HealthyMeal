@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { formatRelative } from "date-fns";
-import { pl } from "date-fns/locale";
+import { format } from "date-fns";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -41,13 +40,13 @@ export function RecipeCard({ recipe, onDelete }: RecipeCardProps) {
 
   const mealTypeLabel = MEAL_TYPE_LABELS[recipe.mealType];
   const difficultyLabel = DIFFICULTY_LABELS[recipe.difficulty];
-  const updatedLabel = formatRelative(new Date(recipe.updatedAt), new Date(), { locale: pl });
+  const updatedLabel = format(new Date(recipe.updatedAt), "dd.MM.yyyy HH:mm");
 
   return (
     <>
       <Card className="transition hover:border-primary/60 focus-within:border-primary/60 focus-within:shadow-md">
         <a href={`/recipes/${recipe.id}`} className="outline-none">
-          <CardHeader className="space-y-2">
+          <CardHeader>
             <div className="flex items-start justify-between gap-3">
               <CardTitle
                 className="line-clamp-2 text-base font-semibold text-foreground"
@@ -101,11 +100,11 @@ export function RecipeCard({ recipe, onDelete }: RecipeCardProps) {
               ) : null}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <CardContent className="space-y-2 text-sm text-muted-foreground mt-3">
             <p>Ostatnia aktualizacja: {updatedLabel}</p>
           </CardContent>
           <CardFooter className="justify-between text-xs text-muted-foreground">
-            <span>Utworzono: {formatRelative(new Date(recipe.createdAt), new Date(), { locale: pl })}</span>
+            <span>Utworzono: {format(new Date(recipe.createdAt), "dd.MM.yyyy HH:mm")}</span>
           </CardFooter>
         </a>
       </Card>
